@@ -8,24 +8,17 @@ KEYWORDS_FILE = 'keywords.txt'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 def save_keywords(keywords):
-    try:
-        with open("keywords.json", "r") as f:
-            existing = json.load(f)
-    except FileNotFoundError:
-        existing = []
+    existing_keywords = set()
+    if os.path.exists(KEYWORDS_FILE):
+        with open(KEYWORDS_FILE, "r") as f:
+            existing_keywords = set([kw.strip().lower() for kw in f.readlines()])
+    with open(KEYWORDS_FILE, "a") as f:
+        for kw in keywords:
+            if kw.lower() not in existing_keywords:
+                f.write(kw + "\n")
 
-    for kw in keywords:
-        if kw not in existing:
-            existing.append(kw)
-
-    with open("keywords.json", "w") as f:
-        json.dump(existing, f)
-
-def load_keywords():
-    try:
-        with open("keywords.json", "r") as f:
-            return json.load(f)
-    except FileNotFoundError:
+def load_saved_keywords():
+    if not os.path.exists(KEYWORDS_FILE):
         return []
     with open(KEYWORDS_FILE, "r") as f:
         return [kw.strip() for kw in f.readlines()]
@@ -50,25 +43,21 @@ def search_pdf_lines(pdf_path, keywords):
 
 @app.route("/", methods=["GET", "POST"])
 def index():
-    result = []
-    previous_keywords = load_keywords()
+    results = []
+    previous_keywords = load_saved_keywords()
 
     if request.method == "POST":
-        uploaded_file = request.files["pdf_file"]
-        keywords = request.form["keywords"].split(",")
-        keywords = [kw.strip() for kw in keywords if kw.strip()]
+        uploaded_file = request.files.get("pdf")
+        keywords_input = request.form.get("keywords", "")
+        keywords = [kw.strip() for kw in keywords_input.split(",") if kw.strip()]
         save_keywords(keywords)
 
-        # Save PDF
-        if not os.path.exists("uploads"):
-            os.makedirs("uploads")
-        file_path = os.path.join("uploads", uploaded_file.filename)
-        uploaded_file.save(file_path)
+        if uploaded_file and uploaded_file.filename:
+            file_path = os.path.join(UPLOAD_FOLDER, uploaded_file.filename)
+            uploaded_file.save(file_path)
+            results = search_pdf_lines(file_path, keywords)
 
-        # Search in PDF
-        result = search_keywords_in_pdf(file_path, keywords)
-
-    return render_template("index.html", results=result, previous_keywords=previous_keywords)
+    return render_template("index.html", results=results, previous_keywords=previous_keywords)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=3000)
