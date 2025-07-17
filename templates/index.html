@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>PDF Keyword Search</title>
+</head>
+<body>
+    <h2>Upload a PDF & Search Keywords</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <label>PDF File:</label><br>
+        <input type="file" name="pdf" required><br><br>
+        <label>Keywords (comma-separated):</label><br>
+        <input type="text" name="keywords" required><br><br>
+        <button type="submit">Search</button>
+    </form>
+    <hr>
+    {% if previous_keywords %}
+        <h3>Previous Keywords:</h3>
+        <p>{{ previous_keywords | join(", ") }}</p>
+    {% endif %}
+    {% if results %}
+        <h3>Search Results:</h3>
+        <ul>
+            {% for result in results %}
+                <li><strong>Page {{ result.page }}:</strong> {{ result.text }}<br>
+                    <em>Matched Keywords:</em> {{ result.matched }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+</body>
+</html>
