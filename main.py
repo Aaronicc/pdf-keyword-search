@@ -1,12 +1,13 @@
 from flask import Flask, render_template, request
 import PyPDF2
 import os
+import re
 
 app = Flask(__name__)
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Store keyword history in memory
+# Store keyword history
 keyword_history = []
 
 @app.route("/", methods=["GET", "POST"])
@@ -25,16 +26,23 @@ def index():
             pdf_path = os.path.join(UPLOAD_FOLDER, uploaded_file.filename)
             uploaded_file.save(pdf_path)
 
-            # Read PDF and search for keywords
+            # PDF reading
             with open(pdf_path, "rb") as f:
                 reader = PyPDF2.PdfReader(f)
-                for page in reader.pages:
+                for page_num, page in enumerate(reader.pages):
                     text = page.extract_text()
                     if text:
                         lines = text.split("\n")
                         for line in lines:
                             for keyword in keywords:
                                 if keyword.lower() in line.lower():
-                                    results.append(f"Match: \"{line.strip()}\"")
+                                    highlighted_line = re.sub(
+                                        f"({re.escape(keyword)})",
+                                        r"<mark>\1</mark>",
+                                        line,
+                                        flags=re.IGNORECASE,
+                                    )
+                                    results.append(f"<strong>Page {page_num + 1}</strong>: {highlighted_line}")
+                                    break  # Avoid repeating if multiple keywords hit in one line
 
     return render_template("index.html", results=results, keywords=keywords, history=keyword_history)
