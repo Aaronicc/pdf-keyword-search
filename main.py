@@ -1,3 +1,9 @@
+import os
+
+# Ensure 'uploads' folder exists
+if not os.path.exists("uploads"):
+    os.makedirs("uploads")
+
 from flask import Flask, render_template, request
 import PyPDF2
 import os
