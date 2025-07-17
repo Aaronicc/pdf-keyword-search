@@ -70,23 +70,30 @@
         <p>No matches found for: <strong>{{ keywords|join(', ') }}</strong></p>
     {% endif %}
 
-    <script>
-        function addKeyword(kw) {
-            let input = document.getElementById("keywords");
-            if (!input.value.includes(kw)) {
-                if (input.value.trim() !== "") {
-                    input.value += "," + kw;
-                } else {
-                    input.value = kw;
-                }
-            }
+<script>
+    function addKeyword(kw) {
+        let input = document.getElementById("keywords");
+        let current = input.value.split(",").map(k => k.trim()).filter(k => k);
+        if (!current.includes(kw)) {
+            current.push(kw);
+            input.value = current.join(", ");
         }
+    }
 
-        function selectKeywords() {
-            let input = document.getElementById("keywords");
-            input.focus();
-            input.select();
-        }
-    </script>
+    function selectKeywords() {
+        const input = document.getElementById("keywords");
+        const historyTags = document.querySelectorAll(".keyword-history a");
+        const selected = new Set(input.value.split(",").map(k => k.trim()));
+
+        historyTags.forEach(tag => {
+            const kw = tag.textContent.trim();
+            selected.add(kw);
+        });
+
+        input.value = Array.from(selected).join(", ");
+        input.focus();
+    }
+</script>
+
 </body>
 </html>
