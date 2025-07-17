@@ -18,13 +18,17 @@
         <p>{{ previous_keywords | join(", ") }}</p>
     {% endif %}
     {% if results %}
-        <h3>Search Results:</h3>
-        <ul>
-            {% for result in results %}
-                <li><strong>Page {{ result.page }}:</strong> {{ result.text }}<br>
-                    <em>Matched Keywords:</em> {{ result.matched }}</li>
-            {% endfor %}
-        </ul>
-    {% endif %}
+  <h3>Search Results:</h3>
+  <ul>
+    {% for res in results %}
+      <li>
+        <strong>Page {{ res.page }}:</strong><br>
+        <em>Matched Keywords:</em> {{ res.matched | join(', ') }}
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No matches found.</p>
+{% endif %}
 </body>
 </html>
