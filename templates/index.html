@@ -4,43 +4,24 @@
     <title>PDF Keyword Search</title>
 </head>
 <body>
-    <h2>Upload a PDF & Search Keywords</h2>
-    <form method="post" enctype="multipart/form-data">
-        <label>PDF File:</label>
+    <h1>Search Keywords in PDF</h1>
+    <form method="POST" enctype="multipart/form-data">
+        <label for="pdf">Upload PDF:</label>
         <input type="file" name="pdf" required><br><br>
-
-        <label>Keywords (comma-separated):</label>
+        <label for="keywords">Enter keywords (comma-separated):</label>
         <input type="text" name="keywords" required><br><br>
-
         <button type="submit">Search</button>
     </form>
-
-    <hr>
-
     {% if results %}
-        <h3>Search Results:</h3>
+        <h2>Results:</h2>
         <ul>
             {% for result in results %}
-                <li>
-                    <strong>Page {{ result.page }}:</strong><br>
-                    <em>Matched Line:</em> {{ result.line }}<br>
-                    <em>Matched Keywords:</em> {{ result.keywords | join(", ") }}
-                </li>
+                <li>{{ result }}</li>
             {% endfor %}
         </ul>
-    {% elif request.method == 'POST' %}
-        <p><strong>No matches found.</strong></p>
     {% endif %}
-
-{% if previous_keywords %}
-    <hr>
-    <h3>Previously Searched Keywords:</h3>
-    <ul>
-        {% for kw in previous_keywords %}
-            <li>{{ kw }}</li>
-        {% endfor %}
-    </ul>
-{% endif %}
-    
+    {% if previous_keywords %}
+        <p><strong>Previously used keywords:</strong> {{ previous_keywords }}</p>
+    {% endif %}
 </body>
 </html>
