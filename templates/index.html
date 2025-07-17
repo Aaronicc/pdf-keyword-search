@@ -5,30 +5,30 @@
 </head>
 <body>
     <h2>Upload a PDF & Search Keywords</h2>
-    <form method="POST" enctype="multipart/form-data">
-        <label>PDF File:</label><br>
+    <form method="post" enctype="multipart/form-data">
+        <label>PDF File:</label>
         <input type="file" name="pdf" required><br><br>
-        <label>Keywords (comma-separated):</label><br>
+
+        <label>Keywords (comma-separated):</label>
         <input type="text" name="keywords" required><br><br>
+
         <button type="submit">Search</button>
     </form>
+
     <hr>
-    {% if previous_keywords %}
-        <h3>Previous Keywords:</h3>
-        <p>{{ previous_keywords | join(", ") }}</p>
-    {% endif %}
+
     {% if results %}
-  <h3>Search Results:</h3>
-  <ul>
-    {% for res in results %}
-      <li>
-        <strong>Page {{ res.page }}:</strong><br>
-        <em>Matched Keywords:</em> {{ res.matched | join(', ') }}
-      </li>
-    {% endfor %}
-  </ul>
-{% else %}
-  <p>No matches found.</p>
-{% endif %}
+        <h3>Search Results:</h3>
+        <ul>
+            {% for result in results %}
+                <li>
+                    <strong>Page {{ result.page }}:</strong><br>
+                    <em>Matched Keywords:</em> {{ result.keywords | join(", ") }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% elif request.method == 'POST' %}
+        <p><strong>No matches found.</strong></p>
+    {% endif %}
 </body>
 </html>
