@@ -6,19 +6,22 @@ app = Flask(__name__)
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-def search_pdf(pdf_path, keywords):
+def search_pdf_lines(pdf_path, keywords):
     results = []
     with open(pdf_path, "rb") as f:
         reader = PyPDF2.PdfReader(f)
         for page_num, page in enumerate(reader.pages):
             text = page.extract_text()
             if text:
-                matched_keywords = [kw for kw in keywords if kw.lower() in text.lower()]
-                if matched_keywords:
-                    results.append({
-                        "page": page_num + 1,
-                        "keywords": matched_keywords
-                    })
+                lines = text.splitlines()
+                for line in lines:
+                    matched_keywords = [kw for kw in keywords if kw.lower() in line.lower()]
+                    if matched_keywords:
+                        results.append({
+                            "page": page_num + 1,
+                            "line": line.strip(),
+                            "keywords": matched_keywords
+                        })
     return results
 
 @app.route("/", methods=["GET", "POST"])
@@ -33,7 +36,7 @@ def index():
         if uploaded_file and uploaded_file.filename:
             file_path = os.path.join(UPLOAD_FOLDER, uploaded_file.filename)
             uploaded_file.save(file_path)
-            results = search_pdf(file_path, keywords)
+            results = search_pdf_lines(file_path, keywords)
 
     return render_template("index.html", results=results)
 
