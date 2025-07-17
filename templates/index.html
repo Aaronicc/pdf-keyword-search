@@ -70,6 +70,16 @@
         <p>No matches found for: <strong>{{ keywords|join(', ') }}</strong></p>
     {% endif %}
 
+    {% if keyword_history %}
+<h3 class="mt-6 text-lg font-semibold">Previously Searched Keywords:</h3>
+<div class="keyword-history mb-4">
+    {% for kw in keyword_history %}
+        <a onclick="addKeyword('{{ kw }}')" class="cursor-pointer inline-block bg-gray-200 hover:bg-blue-200 text-sm text-gray-800 px-2 py-1 rounded m-1">{{ kw }}</a>
+    {% endfor %}
+    <button type="button" onclick="selectKeywords()" class="ml-2 px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">Select All</button>
+</div>
+{% endif %}
+
 <script>
     function addKeyword(kw) {
         let input = document.getElementById("keywords");
