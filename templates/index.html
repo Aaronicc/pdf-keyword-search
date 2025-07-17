@@ -23,6 +23,7 @@
             {% for result in results %}
                 <li>
                     <strong>Page {{ result.page }}:</strong><br>
+                    <em>Matched Line:</em> {{ result.line }}<br>
                     <em>Matched Keywords:</em> {{ result.keywords | join(", ") }}
                 </li>
             {% endfor %}
