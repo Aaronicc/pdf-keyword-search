@@ -31,5 +31,16 @@
     {% elif request.method == 'POST' %}
         <p><strong>No matches found.</strong></p>
     {% endif %}
+
+    {% if previous_keywords %}
+    <hr>
+    <h3>Previously Searched Keywords:</h3>
+    <ul>
+        {% for kw in previous_keywords %}
+            <li>{{ kw }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
 </body>
 </html>
