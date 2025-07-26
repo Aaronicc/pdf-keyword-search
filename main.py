@@ -1,48 +1,78 @@
-from flask import Flask, render_template, request
-import PyPDF2
+from flask import Flask, request, render_template
 import os
+import PyPDF2
 import re
+from datetime import datetime
 
 app = Flask(__name__)
-UPLOAD_FOLDER = "uploads"
+
+UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-# Store keyword history
-keyword_history = []
+previous_keywords = []
 
-@app.route("/", methods=["GET", "POST"])
-def index():
+def extract_lines_with_keywords(pdf_path, keywords):
     results = []
-    keywords = []
+    keyword_counts = {kw.lower(): 0 for kw in keywords}
 
-    if request.method == "POST":
-        uploaded_file = request.files["pdf_file"]
-        raw_keywords = request.form["keywords"]
-
-        if uploaded_file and raw_keywords:
-            keywords = [kw.strip() for kw in raw_keywords.split(",") if kw.strip()]
-            keyword_history.extend([kw for kw in keywords if kw not in keyword_history])
-
-            pdf_path = os.path.join(UPLOAD_FOLDER, uploaded_file.filename)
-            uploaded_file.save(pdf_path)
-
-            # PDF reading
-            with open(pdf_path, "rb") as f:
-                reader = PyPDF2.PdfReader(f)
-                for page_num, page in enumerate(reader.pages):
+    try:
+        with open(pdf_path, "rb") as f:
+            reader = PyPDF2.PdfReader(f)
+            for page_num, page in enumerate(reader.pages):
+                try:
                     text = page.extract_text()
                     if text:
                         lines = text.split("\n")
                         for line in lines:
                             for keyword in keywords:
                                 if keyword.lower() in line.lower():
-                                    highlighted_line = re.sub(
-                                        f"({re.escape(keyword)})",
-                                        r"<mark>\1</mark>",
-                                        line,
-                                        flags=re.IGNORECASE,
-                                    )
-                                    results.append(f"<strong>Page {page_num + 1}</strong>: {highlighted_line}")
-                                    break  # Avoid repeating if multiple keywords hit in one line
+                                    # Find date in the line if any (format: DD MMM YY or D MMM YY)
+                                    match_date = re.search(r'\b\d{1,2} [A-Za-z]{3} \d{2}\b', line)
+                                    date_found = match_date.group(0) if match_date else "N/A"
+                                    keyword_counts[keyword.lower()] += 1
+                                    # Highlight keyword
+                                    highlighted_line = re.sub(f"(?i)({re.escape(keyword)})", r"<mark>\1</mark>", line)
+                                    results.append(f"✅ Page {page_num+1} | 📅 Date: {date_found} | 🔍 Matched: '{keyword}' | 💬 Line: {highlighted_line}")
+                                    break
+                except Exception as e:
+                    results.append(f"❌ Error reading page {page_num+1}: {str(e)}")
+    except Exception as e:
+        results.append(f"❌ Failed to read PDF: {str(e)}")
 
-    return render_template("index.html", results=results, keywords=keywords, history=keyword_history)
+    total_matches = sum(keyword_counts.values())
+    return results, {"total_matches": total_matches, "keyword_counts": keyword_counts}
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+    results = []
+    summary = None
+
+    if request.method == "POST":
+        keywords = request.form.get("keywords", "").split(",")
+        keywords = [k.strip() for k in keywords if k.strip()]
+
+        # Add previously selected checkboxes
+        keywords += request.form.getlist("previous_keywords")
+        keywords = list(set(k.lower() for k in keywords))  # unique, lowercase
+
+        if keywords:
+            for kw in keywords:
+                if kw not in previous_keywords:
+                    previous_keywords.append(kw)
+
+        uploaded_file = request.files.get("pdf_file")
+        if uploaded_file:
+            filename = uploaded_file.filename
+            filepath = os.path.join(UPLOAD_FOLDER, filename)
+            uploaded_file.save(filepath)
+            results, summary = extract_lines_with_keywords(filepath, keywords)
+
+    return render_template(
+        "index.html",
+        results=results,
+        previous_keywords=previous_keywords,
+        summary=summary
+    )
+
+if __name__ == "__main__":
+    app.run(debug=True)
