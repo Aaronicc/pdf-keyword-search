@@ -1,121 +1,80 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>PDF Keyword Search</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        .highlight-positive {
-            color: green;
-        }
-        .highlight-negative {
-            color: red;
-        }
-        .keyword-section {
-            margin-top: 20px;
-        }
-        .keyword-list {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .keyword-item {
-            background-color: #f0f0f0;
-            padding: 6px 10px;
-            border-radius: 5px;
-        }
-        .keyword-actions {
-            margin-left: 10px;
-            cursor: pointer;
-        }
-        .result {
-            margin-top: 20px;
-            border-top: 1px solid #ccc;
-            padding-top: 10px;
-        }
+        body { font-family: Arial; padding: 20px; }
+        h2 { margin-top: 40px; }
+        .highlight { background-color: #ffffcc; }
     </style>
 </head>
 <body>
 
-<h2>This is for cross-reference purposes only and should not be used as the sole basis for your review.</h2>
+<h3>This is for cross-reference purposes only and should not be used as the sole basis for your review.</h3>
 
-<h1>PDF Keyword Search</h1>
+<h1>Upload PDF and Search Keywords</h1>
 
-<form action="/add_keywords" method="post">
-    <input type="text" name="positive_keywords" placeholder="Add positive keywords (comma-separated)">
-    <input type="text" name="negative_keywords" placeholder="Add negative keywords (comma-separated)">
-    <button type="submit">Add Keywords</button>
-</form>
-
-<form action="/search_pdf" method="post" enctype="multipart/form-data" style="margin-top: 20px;">
-    <input type="file" name="pdf" required>
+<form method="POST" enctype="multipart/form-data">
+    <label>Upload PDF:</label><br>
+    <input type="file" name="pdf"><br><br>
     <button type="submit">Search PDF</button>
 </form>
 
-<div class="keyword-section">
-    <h3>
-        Positive Keywords
-        <button onclick="toggleVisibility('posKeywords')">Show/Hide</button>
-    </h3>
-    <ul id="posKeywords" class="keyword-list">
-        {% for id, keyword in pos_keywords %}
-            <li class="keyword-item">
-                {{ keyword }}
-                <a href="/edit_keyword/{{ id }}">✏️</a>
-                <a href="/delete_keyword/{{ id }}" onclick="return confirm('Are you sure you want to delete this keyword?')">🗑️</a>
-            </li>
-        {% endfor %}
-    </ul>
-</div>
+<hr>
 
-<div class="keyword-section">
-    <h3>
-        Negative Keywords
-        <button onclick="toggleVisibility('negKeywords')">Show/Hide</button>
-    </h3>
-    <ul id="negKeywords" class="keyword-list">
-        {% for id, keyword in neg_keywords %}
-            <li class="keyword-item">
-                {{ keyword }}
-                <a href="/edit_keyword/{{ id }}">✏️</a>
-                <a href="/delete_keyword/{{ id }}" onclick="return confirm('Are you sure you want to delete this keyword?')">🗑️</a>
-            </li>
-        {% endfor %}
-    </ul>
-</div>
+<h2>Add Positive Keyword</h2>
+<form method="POST">
+    <input type="text" name="positive_keyword" placeholder="Add positive keyword">
+    <button type="submit" name="add_positive">Save</button>
+</form>
+<ul>
+    {% for kw in saved_pos_keywords %}
+        <li>{{ kw }}</li>
+    {% endfor %}
+</ul>
 
-{% if results %}
-    <div class="result">
-        <h2>Matched Results</h2>
-        {% for item in results %}
-            <div>
-                <h4>Page {{ item.page }}</h4>
-                <ul>
-                    {% for match in item.matches %}
-                        <li class="{{ 'highlight-positive' if match.type == 'positive' else 'highlight-negative' }}">
-                            <strong>{{ match.keyword }}</strong> — {{ match.count }} match{{ 'es' if match.count > 1 else '' }}
-                            <ul>
-                                {% for snippet in match.snippets %}
-                                    <li>... {{ snippet }} ...</li>
-                                {% endfor %}
-                            </ul>
-                        </li>
-                    {% endfor %}
-                </ul>
-            </div>
-        {% endfor %}
-    </div>
+<h2>Add Negative Keyword</h2>
+<form method="POST">
+    <input type="text" name="negative_keyword" placeholder="Add negative keyword">
+    <button type="submit" name="add_negative">Save</button>
+</form>
+<ul>
+    {% for kw in saved_neg_keywords %}
+        <li>{{ kw }}</li>
+    {% endfor %}
+</ul>
+
+{% if message %}
+    <p style="color:red;"><strong>{{ message }}</strong></p>
 {% endif %}
 
-<script>
-    function toggleVisibility(id) {
-        const element = document.getElementById(id);
-        element.style.display = (element.style.display === "none") ? "flex" : "none";
-    }
-</script>
+{% if match_counts %}
+    <h2>Match Summary</h2>
+    <h3>Positive:</h3>
+    <ul>
+        {% for kw, count in match_counts['positive'].items() %}
+            <li>{{ kw }}: {{ count }}</li>
+        {% endfor %}
+    </ul>
+    <h3>Negative:</h3>
+    <ul>
+        {% for kw, count in match_counts['negative'].items() %}
+            <li>{{ kw }}: {{ count }}</li>
+        {% endfor %}
+    </ul>
+{% endif %}
+
+{% if results %}
+    <h2>Matched Results</h2>
+    <ul>
+    {% for page_num, line, keywords in results %}
+        <li><strong>Page {{ page_num }}:</strong> {{ line }} <br>
+            <small>Matched: {{ keywords | join(", ") }}</small>
+        </li>
+    {% endfor %}
+    </ul>
+{% endif %}
 
 </body>
 </html>
