@@ -1,95 +1,150 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>PDF Keyword Search</title>
-    <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        textarea { width: 100%; height: 200px; margin-top: 10px; }
-        .keyword-group { margin-bottom: 10px; }
-        .keyword { display: inline-block; background: #f2f2f2; padding: 5px 10px; margin: 3px; border-radius: 5px; }
-        .matched-line { background: #ffffcc; padding: 5px; margin-bottom: 3px; border-left: 4px solid orange; }
-        .icon-btn { background: none; border: none; cursor: pointer; margin-left: 5px; color: red; }
-    </style>
-    <script>
-        function confirmDelete(form) {
-            if (confirm("Are you sure you want to delete this keyword?")) {
-                form.submit();
-            }
-        }
-        function showEditForm(id, oldValue) {
-            const container = document.getElementById(`keyword-container-${id}`);
-            container.innerHTML = `
-                <form method="POST" action="/edit_keyword/${id}" style="display:inline;">
-                    <input name="new_word" value="${oldValue}" required>
-                    <button type="submit">Save</button>
-                </form>`;
-        }
-    </script>
+  <meta charset="utf-8">
+  <title>PDF Keyword Search</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2em;
+      background-color: #f9f9f9;
+    }
+    h1 {
+      color: #333;
+    }
+    form {
+      margin-bottom: 2em;
+    }
+    label {
+      display: block;
+      margin-top: 1em;
+    }
+    textarea {
+      width: 100%;
+      height: 4em;
+    }
+    .results {
+      background: #fff;
+      padding: 1em;
+      border: 1px solid #ccc;
+      margin-top: 2em;
+    }
+    .keyword-list {
+      list-style: none;
+      padding: 0;
+    }
+    .keyword-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #eee;
+      margin-bottom: 5px;
+      padding: 5px 10px;
+      border-radius: 4px;
+    }
+    .keyword-list li span {
+      flex-grow: 1;
+    }
+    .keyword-list i {
+      cursor: pointer;
+      margin-left: 10px;
+      color: #333;
+    }
+    .match {
+      margin: 0.5em 0;
+      padding: 0.5em;
+      background-color: #e0f7fa;
+      border-left: 5px solid #00acc1;
+    }
+    .match strong {
+      color: #006064;
+    }
+  </style>
 </head>
 <body>
-    <h1>PDF Keyword Search</h1>
+  <h1>PDF Keyword Search</h1>
 
-    {% if message %}
-        <p><strong>{{ message }}</strong></p>
-    {% endif %}
+  <form action="/search_pdf" method="post" enctype="multipart/form-data">
+    <label>Upload PDF:
+      <input type="file" name="pdf_file" required>
+    </label>
+    <label>Positive Keywords (comma separated):
+      <textarea name="positive_keywords"></textarea>
+    </label>
+    <label>Negative Keywords (comma separated):
+      <textarea name="negative_keywords"></textarea>
+    </label>
+    <button type="submit">Search</button>
+  </form>
 
-    <h2>Upload PDF</h2>
-    <form method="POST" enctype="multipart/form-data" action="/">
-        <input type="file" name="pdf_file" accept=".pdf" required>
-        <button type="submit">Search PDF</button>
-    </form>
+  <h3>Saved Positive Keywords</h3>
+  <ul class="keyword-list">
+    {% for keyword in saved_pos_keywords %}
+    <li>
+      <span>{{ keyword[1] }}</span>
+      <span>
+        <i class="fa-solid fa-pen-to-square" onclick="editKeyword({{ keyword[0] }}, '{{ keyword[1] }}', 'positive')"></i>
+        <i class="fa-solid fa-trash" onclick="confirmDelete({{ keyword[0] }}, 'positive')"></i>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
 
-    <h2>Positive Keywords</h2>
-    <div class="keyword-group">
-        {% for id, word in pos_keywords %}
-            <span class="keyword" id="keyword-container-{{ id }}">
-                {{ word }}
-                <button class="icon-btn" onclick="showEditForm({{ id }}, '{{ word }}')">✏️</button>
-                <form method="POST" action="/delete_keyword/{{ id }}" style="display:inline;">
-                    <button class="icon-btn" type="button" onclick="confirmDelete(this.form)">🗑️</button>
-                </form>
-            </span>
-        {% endfor %}
+  <h3>Saved Negative Keywords</h3>
+  <ul class="keyword-list">
+    {% for keyword in saved_neg_keywords %}
+    <li>
+      <span>{{ keyword[1] }}</span>
+      <span>
+        <i class="fa-solid fa-pen-to-square" onclick="editKeyword({{ keyword[0] }}, '{{ keyword[1] }}', 'negative')"></i>
+        <i class="fa-solid fa-trash" onclick="confirmDelete({{ keyword[0] }}, 'negative')"></i>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if results %}
+  <div class="results">
+    <h3>Keyword Matches</h3>
+    {% for result in results %}
+    <div class="match">
+      <strong>Page {{ result.page }}</strong>: {{ result.text }}
     </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
-    <form method="POST" action="/add_keyword">
-        <input name="word" placeholder="Add keyword" required>
-        <input type="hidden" name="type" value="positive">
-        <button type="submit">Add Positive</button>
-    </form>
+  <form id="deleteForm" method="post" style="display:none;"></form>
+  <form id="editForm" method="post" style="display:none;"></form>
 
-    <h2>Negative Keywords</h2>
-    <div class="keyword-group">
-        {% for id, word in neg_keywords %}
-            <span class="keyword" id="keyword-container-{{ id }}">
-                {{ word }}
-                <button class="icon-btn" onclick="showEditForm({{ id }}, '{{ word }}')">✏️</button>
-                <form method="POST" action="/delete_keyword/{{ id }}" style="display:inline;">
-                    <button class="icon-btn" type="button" onclick="confirmDelete(this.form)">🗑️</button>
-                </form>
-            </span>
-        {% endfor %}
-    </div>
+  <script>
+    function confirmDelete(id, type) {
+      if (confirm('Are you sure you want to delete this keyword?')) {
+        const form = document.getElementById('deleteForm');
+        form.action = '/delete_keyword/' + id + '?type=' + type;
+        form.submit();
+      }
+    }
 
-    <form method="POST" action="/add_keyword">
-        <input name="word" placeholder="Add keyword" required>
-        <input type="hidden" name="type" value="negative">
-        <button type="submit">Add Negative</button>
-    </form>
-
-    {% if matched_lines %}
-        <h2>Matched Text</h2>
-        <div>
-            {% for line in matched_lines %}
-                <div class="matched-line">{{ line }}</div>
-            {% endfor %}
-        </div>
-    {% endif %}
-
-    {% if extracted_text %}
-        <h2>Full PDF Text</h2>
-        <textarea readonly>{{ extracted_text }}</textarea>
-    {% endif %}
+    function editKeyword(id, word, type) {
+      const newWord = prompt('Edit keyword:', word);
+      if (newWord && newWord !== word) {
+        const form = document.getElementById('editForm');
+        form.action = '/edit_keyword/' + id;
+        const input1 = document.createElement('input');
+        input1.type = 'hidden';
+        input1.name = 'word';
+        input1.value = newWord;
+        const input2 = document.createElement('input');
+        input2.type = 'hidden';
+        input2.name = 'type';
+        input2.value = type;
+        form.appendChild(input1);
+        form.appendChild(input2);
+        form.submit();
+      }
+    }
+  </script>
 </body>
 </html>
