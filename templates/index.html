@@ -1,80 +1,76 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>PDF Keyword Search</title>
-    <style>
-        body { font-family: Arial; padding: 20px; }
-        h2 { margin-top: 40px; }
-        .highlight { background-color: #ffffcc; }
-    </style>
 </head>
 <body>
+    <h2>This is for cross-reference purposes only and should not be used as the sole basis for your review.</h2>
 
-<h3>This is for cross-reference purposes only and should not be used as the sole basis for your review.</h3>
+    <h1>Upload PDF</h1>
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="pdf" accept=".pdf" required><br><br>
 
-<h1>Upload PDF and Search Keywords</h1>
+        <label>Positive Keywords (comma-separated):</label><br>
+        <input type="text" name="positive_keywords"><br><br>
 
-<form method="POST" enctype="multipart/form-data">
-    <label>Upload PDF:</label><br>
-    <input type="file" name="pdf"><br><br>
-    <button type="submit">Search PDF</button>
-</form>
+        <label>Negative Keywords (comma-separated):</label><br>
+        <input type="text" name="negative_keywords"><br><br>
 
-<hr>
+        <input type="submit" value="Upload & Scan">
+    </form>
 
-<h2>Add Positive Keyword</h2>
-<form method="POST">
-    <input type="text" name="positive_keyword" placeholder="Add positive keyword">
-    <button type="submit" name="add_positive">Save</button>
-</form>
-<ul>
-    {% for kw in saved_pos_keywords %}
-        <li>{{ kw }}</li>
-    {% endfor %}
-</ul>
-
-<h2>Add Negative Keyword</h2>
-<form method="POST">
-    <input type="text" name="negative_keyword" placeholder="Add negative keyword">
-    <button type="submit" name="add_negative">Save</button>
-</form>
-<ul>
-    {% for kw in saved_neg_keywords %}
-        <li>{{ kw }}</li>
-    {% endfor %}
-</ul>
-
-{% if message %}
-    <p style="color:red;"><strong>{{ message }}</strong></p>
-{% endif %}
-
-{% if match_counts %}
-    <h2>Match Summary</h2>
-    <h3>Positive:</h3>
+    <h2>Saved Positive Keywords</h2>
     <ul>
-        {% for kw, count in match_counts['positive'].items() %}
-            <li>{{ kw }}: {{ count }}</li>
-        {% endfor %}
-    </ul>
-    <h3>Negative:</h3>
-    <ul>
-        {% for kw, count in match_counts['negative'].items() %}
-            <li>{{ kw }}: {{ count }}</li>
-        {% endfor %}
-    </ul>
-{% endif %}
-
-{% if results %}
-    <h2>Matched Results</h2>
-    <ul>
-    {% for page_num, line, keywords in results %}
-        <li><strong>Page {{ page_num }}:</strong> {{ line }} <br>
-            <small>Matched: {{ keywords | join(", ") }}</small>
+        {% for k in pos_keywords %}
+        <li>
+            <form method="POST" action="{{ url_for('edit', keyword_id=k[0]) }}" style="display:inline;">
+                <input type="text" name="new_word" value="{{ k[1] }}">
+                <button type="submit">Edit</button>
+            </form>
+            <form method="POST" action="{{ url_for('delete', keyword_id=k[0]) }}" style="display:inline;">
+                <button type="submit">Delete</button>
+            </form>
         </li>
-    {% endfor %}
+        {% endfor %}
     </ul>
-{% endif %}
 
+    <h2>Saved Negative Keywords</h2>
+    <ul>
+        {% for k in neg_keywords %}
+        <li>
+            <form method="POST" action="{{ url_for('edit', keyword_id=k[0]) }}" style="display:inline;">
+                <input type="text" name="new_word" value="{{ k[1] }}">
+                <button type="submit">Edit</button>
+            </form>
+            <form method="POST" action="{{ url_for('delete', keyword_id=k[0]) }}" style="display:inline;">
+                <button type="submit">Delete</button>
+            </form>
+        </li>
+        {% endfor %}
+    </ul>
+
+    {% if results %}
+        <h2>Keyword Matches</h2>
+        {% for page in results %}
+            <h3>Page {{ page.page }}</h3>
+            <ul>
+                {% for word, count in page.matches %}
+                    <li>{{ word }}: {{ count }} matches</li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+
+        <h2>Total Keyword Counts</h2>
+        <ul>
+        {% for word, count in counts.items() %}
+            <li>{{ word }}: {{ count }}</li>
+        {% endfor %}
+        </ul>
+
+        {% if highlighted_pdf %}
+        <p><a href="{{ url_for('download_highlighted', filename=highlighted_pdf.split('/')[-1]) }}" target="_blank">Download Highlighted PDF</a></p>
+        {% endif %}
+    {% endif %}
 </body>
 </html>
