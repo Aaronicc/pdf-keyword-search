@@ -1,101 +1,150 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>PDF Keyword Search</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 30px;
-            background-color: #f4f4f4;
-        }
-        h2 {
-            margin-top: 30px;
-        }
-        .result-box {
-            background: #fff;
-            border-left: 4px solid #007BFF;
-            padding: 10px 15px;
-            margin: 10px 0;
-            border-radius: 5px;
-        }
-        .toggle-section {
-            margin-top: 10px;
-        }
-        .keyword-list {
-            display: none;
-            margin: 10px 0;
-            padding-left: 20px;
-        }
-        button {
-            margin-top: 5px;
-        }
-    </style>
-    <script>
-        function toggleKeywords(id) {
-            var elem = document.getElementById(id);
-            elem.style.display = (elem.style.display === 'none') ? 'block' : 'none';
-        }
-    </script>
+  <meta charset="utf-8">
+  <title>PDF Keyword Search</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 2em;
+      background-color: #f9f9f9;
+    }
+    h1 {
+      color: #333;
+    }
+    form {
+      margin-bottom: 2em;
+    }
+    label {
+      display: block;
+      margin-top: 1em;
+    }
+    textarea {
+      width: 100%;
+      height: 4em;
+    }
+    .results {
+      background: #fff;
+      padding: 1em;
+      border: 1px solid #ccc;
+      margin-top: 2em;
+    }
+    .keyword-list {
+      list-style: none;
+      padding: 0;
+    }
+    .keyword-list li {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #eee;
+      margin-bottom: 5px;
+      padding: 5px 10px;
+      border-radius: 4px;
+    }
+    .keyword-list li span {
+      flex-grow: 1;
+    }
+    .keyword-list i {
+      cursor: pointer;
+      margin-left: 10px;
+      color: #333;
+    }
+    .match {
+      margin: 0.5em 0;
+      padding: 0.5em;
+      background-color: #e0f7fa;
+      border-left: 5px solid #00acc1;
+    }
+    .match strong {
+      color: #006064;
+    }
+  </style>
 </head>
 <body>
-    <h1>📄 PDF Keyword Search</h1>
+  <h1>PDF Keyword Search</h1>
 
-    <!-- Add Keyword Form -->
-    <h2>Add Keyword</h2>
-    <form action="/add_keyword" method="post">
-        <input type="text" name="keyword" placeholder="Enter keyword" required>
-        <select name="type">
-            <option value="positive">Positive</option>
-            <option value="negative">Negative</option>
-        </select>
-        <button type="submit">Add Keyword</button>
-    </form>
+  <form action="/search_pdf" method="post" enctype="multipart/form-data">
+    <label>Upload PDF:
+      <input type="file" name="pdf_file" required>
+    </label>
+    <label>Positive Keywords (comma separated):
+      <textarea name="positive_keywords"></textarea>
+    </label>
+    <label>Negative Keywords (comma separated):
+      <textarea name="negative_keywords"></textarea>
+    </label>
+    <button type="submit">Search</button>
+  </form>
 
-    <!-- Show/Hide Keywords -->
-    <div class="toggle-section">
-        <button onclick="toggleKeywords('positive-kw')">Show/Hide Positive Keywords</button>
-        <div id="positive-kw" class="keyword-list">
-            <ul>
-                {% for word in pos_keywords %}
-                    <li>{{ word }}</li>
-                {% endfor %}
-            </ul>
-        </div>
+  <h3>Saved Positive Keywords</h3>
+  <ul class="keyword-list">
+    {% for keyword in saved_pos_keywords %}
+    <li>
+      <span>{{ keyword[1] }}</span>
+      <span>
+        <i class="fa-solid fa-pen-to-square" onclick="editKeyword({{ keyword[0] }}, '{{ keyword[1] }}', 'positive')"></i>
+        <i class="fa-solid fa-trash" onclick="confirmDelete({{ keyword[0] }}, 'positive')"></i>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
 
-        <button onclick="toggleKeywords('negative-kw')">Show/Hide Negative Keywords</button>
-        <div id="negative-kw" class="keyword-list">
-            <ul>
-                {% for word in neg_keywords %}
-                    <li>{{ word }}</li>
-                {% endfor %}
-            </ul>
-        </div>
+  <h3>Saved Negative Keywords</h3>
+  <ul class="keyword-list">
+    {% for keyword in saved_neg_keywords %}
+    <li>
+      <span>{{ keyword[1] }}</span>
+      <span>
+        <i class="fa-solid fa-pen-to-square" onclick="editKeyword({{ keyword[0] }}, '{{ keyword[1] }}', 'negative')"></i>
+        <i class="fa-solid fa-trash" onclick="confirmDelete({{ keyword[0] }}, 'negative')"></i>
+      </span>
+    </li>
+    {% endfor %}
+  </ul>
+
+  {% if results %}
+  <div class="results">
+    <h3>Keyword Matches</h3>
+    {% for result in results %}
+    <div class="match">
+      <strong>Page {{ result.page }}</strong>: {{ result.text }}
     </div>
+    {% endfor %}
+  </div>
+  {% endif %}
 
-    <!-- PDF Upload Form -->
-    <h2>Upload and Search PDF</h2>
-    <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="pdf" accept=".pdf" required>
-        <button type="submit">Search PDF</button>
-    </form>
+  <form id="deleteForm" method="post" style="display:none;"></form>
+  <form id="editForm" method="post" style="display:none;"></form>
 
-    <!-- Search Results -->
-    {% if results %}
-        <h2>Search Results</h2>
-        {% for result in results %}
-            <div class="result-box">
-                <strong>Page {{ result.page }}</strong><br>
-                {% if result.found_positive %}
-                    <span style="color: green;">✅ Positive Keywords Found:</span>
-                    {{ result.found_positive | join(', ') }}<br>
-                {% endif %}
-                {% if result.found_negative %}
-                    <span style="color: red;">❌ Negative Keywords Found:</span>
-                    {{ result.found_negative | join(', ') }}<br>
-                {% endif %}
-            </div>
-        {% endfor %}
-    {% endif %}
+  <script>
+    function confirmDelete(id, type) {
+      if (confirm('Are you sure you want to delete this keyword?')) {
+        const form = document.getElementById('deleteForm');
+        form.action = '/delete_keyword/' + id + '?type=' + type;
+        form.submit();
+      }
+    }
+
+    function editKeyword(id, word, type) {
+      const newWord = prompt('Edit keyword:', word);
+      if (newWord && newWord !== word) {
+        const form = document.getElementById('editForm');
+        form.action = '/edit_keyword/' + id;
+        const input1 = document.createElement('input');
+        input1.type = 'hidden';
+        input1.name = 'word';
+        input1.value = newWord;
+        const input2 = document.createElement('input');
+        input2.type = 'hidden';
+        input2.name = 'type';
+        input2.value = type;
+        form.appendChild(input1);
+        form.appendChild(input2);
+        form.submit();
+      }
+    }
+  </script>
 </body>
 </html>
