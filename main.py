@@ -1,3 +1,21 @@
+import sqlite3
+
+def init_db():
+    conn = sqlite3.connect("keywords.db")
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS keywords (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            word TEXT NOT NULL,
+            type TEXT CHECK(type IN ('positive', 'negative')) NOT NULL
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Initialize DB table when app starts
+init_db()
+
 import os
 import fitz  # PyMuPDF
 import sqlite3
