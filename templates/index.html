@@ -4,99 +4,92 @@
     <meta charset="UTF-8">
     <title>PDF Keyword Search</title>
     <style>
-        .toggle-button {
-            margin-top: 10px;
-            cursor: pointer;
-            color: blue;
-            text-decoration: underline;
-        }
-        .hidden {
-            display: none;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .section { margin-bottom: 20px; }
+        .hidden { display: none; }
+        .match-highlight { font-weight: bold; color: green; }
     </style>
-</head>
-<body>
-    <h2>This is for cross-reference purposes only and should not be used as the sole basis for your review.</h2>
-
-    <h1>Upload PDF</h1>
-    <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="pdf" accept=".pdf" required><br><br>
-
-        <label>Positive Keywords (comma-separated):</label><br>
-        <input type="text" name="positive_keywords"><br><br>
-
-        <label>Negative Keywords (comma-separated):</label><br>
-        <input type="text" name="negative_keywords"><br><br>
-
-        <input type="submit" value="Upload & Scan">
-    </form>
-
-    <div>
-        <h2>Saved Positive Keywords <span class="toggle-button" onclick="toggleSection('posSection')">[Show/Hide]</span></h2>
-        <div id="posSection">
-            <ul>
-                {% for k in pos_keywords %}
-                <li>
-                    <form method="POST" action="{{ url_for('edit', keyword_id=k[0]) }}" style="display:inline;">
-                        <input type="text" name="new_word" value="{{ k[1] }}">
-                        <button type="submit">Edit</button>
-                    </form>
-                    <form method="POST" action="{{ url_for('delete', keyword_id=k[0]) }}" style="display:inline;">
-                        <button type="submit">Delete</button>
-                    </form>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-
-    <div>
-        <h2>Saved Negative Keywords <span class="toggle-button" onclick="toggleSection('negSection')">[Show/Hide]</span></h2>
-        <div id="negSection">
-            <ul>
-                {% for k in neg_keywords %}
-                <li>
-                    <form method="POST" action="{{ url_for('edit', keyword_id=k[0]) }}" style="display:inline;">
-                        <input type="text" name="new_word" value="{{ k[1] }}">
-                        <button type="submit">Edit</button>
-                    </form>
-                    <form method="POST" action="{{ url_for('delete', keyword_id=k[0]) }}" style="display:inline;">
-                        <button type="submit">Delete</button>
-                    </form>
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
-    </div>
-
-    {% if results %}
-        <h2>Keyword Matches</h2>
-        {% for page in results %}
-            <h3>Page {{ page.page }}</h3>
-            <ul>
-                {% for word, count in page.matches %}
-                    <li>{{ word }}: {{ count }} matches</li>
-                {% endfor %}
-            </ul>
-        {% endfor %}
-
-        <h2>Total Keyword Counts</h2>
-        <ul>
-        {% for word, count in counts.items() %}
-            <li>{{ word }}: {{ count }}</li>
-        {% endfor %}
-        </ul>
-
-        {% if highlighted_pdf %}
-        <p><a href="{{ url_for('download_highlighted', filename=highlighted_pdf.split('/')[-1]) }}" target="_blank">Download Highlighted PDF</a></p>
-        {% endif %}
-    {% endif %}
-
     <script>
-        function toggleSection(id) {
-            const section = document.getElementById(id);
-            section.classList.toggle('hidden');
+        function toggleVisibility(id) {
+            const el = document.getElementById(id);
+            el.classList.toggle("hidden");
         }
     </script>
+</head>
+<body>
+
+    <h2>This is for cross-reference purposes only and should not be used as the sole basis for your review.</h2>
+
+    <!-- Add Keywords Form -->
+    <div class="section">
+        <h3>Add Keywords</h3>
+        <form action="/add_keywords" method="POST">
+            <label>Positive Keywords (comma-separated):</label><br>
+            <input type="text" name="positive_keywords" style="width: 100%;"><br><br>
+
+            <label>Negative Keywords (comma-separated):</label><br>
+            <input type="text" name="negative_keywords" style="width: 100%;"><br><br>
+
+            <button type="submit">💾 Save Keywords</button>
+        </form>
+    </div>
+
+    <!-- Toggle Saved Keywords -->
+    <div class="section">
+        <button onclick="toggleVisibility('savedKeywords')">🔽 Show/Hide Saved Keywords</button>
+        <div id="savedKeywords" class="hidden">
+            <h4>Saved Positive Keywords:</h4>
+            <ul>
+                {% for kw in saved_pos_keywords %}
+                    <li>{{ kw }}</li>
+                {% endfor %}
+            </ul>
+            <h4>Saved Negative Keywords:</h4>
+            <ul>
+                {% for kw in saved_neg_keywords %}
+                    <li>{{ kw }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+
+    <!-- PDF Upload & Search -->
+    <div class="section">
+        <h3>Search in PDF</h3>
+        <form action="/" method="POST" enctype="multipart/form-data">
+            <label>Upload PDF:</label><br>
+            <input type="file" name="pdf_file" required><br><br>
+
+            <label>Search Keywords (comma-separated):</label><br>
+            <input type="text" name="keywords" style="width: 100%;"><br><br>
+
+            <button type="submit">🔍 Search PDF</button>
+        </form>
+    </div>
+
+    <!-- Results -->
+    {% if results %}
+        <div class="section">
+            <h3>Search Results</h3>
+            <ul>
+                {% for r in results %}
+                    <li>{{ r|safe }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
+    <!-- Summary -->
+    {% if counts %}
+        <div class="section">
+            <h3>Summary of Matches</h3>
+            <ul>
+                {% for k, v in counts.items() %}
+                    <li>{{ k }}: {{ v }} transaction{{ 's' if v != 1 else '' }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+    {% endif %}
+
 </body>
 </html>
