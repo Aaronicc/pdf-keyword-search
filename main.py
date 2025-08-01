@@ -8,11 +8,12 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-@app.route('/search_pdf', methods=['POST'])
-def search_pdf():
-    file = request.files['pdf']
-    pos_keywords = [word for _, word in get_keywords_by_type("positive")]
-    neg_keywords = [word for _, word in get_keywords_by_type("negative")]
+@app.route('/')
+def home():
+    return render_template('index.html',
+                           pos_keywords=get_keywords_by_type("positive"),
+                           neg_keywords=get_keywords_by_type("negative"),
+                           results=None)
 
     if file:
         filepath = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
