@@ -1,109 +1,44 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>PDF Keyword Search - DarwinSantiago</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .keyword-history { margin-bottom: 10px; }
-        .keyword-history a {
-            display: inline-block;
-            background: #f0f0f0;
-            padding: 5px 10px;
-            margin: 2px;
-            border-radius: 4px;
-            text-decoration: none;
-            color: #333;
-        }
-        .result {
-            margin-bottom: 15px;
-            padding: 10px;
-            background: #f9f9f9;
-            border-left: 5px solid #4CAF50;
-        }
-        mark {
-            background-color: yellow;
-            font-weight: bold;
-        }
-        .select-btn {
-            margin-left: 10px;
-            padding: 5px 10px;
-            background: #1890ff;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-        .select-btn:hover {
-            background: #007acc;
-        }
-    </style>
-</head>
-<body>
-    <h2>Upload a PDF & Search Keywords</h2>
-    <form method="POST" enctype="multipart/form-data">
-        <label><strong>PDF File:</strong></label>
-        <input type="file" name="pdf_file" required><br><br>
+<form method="POST" enctype="multipart/form-data">
+    <label><strong>Upload PDF file:</strong></label><br>
+    <input type="file" name="pdf_file" accept=".pdf" required><br><br>
 
-        <label><strong>Keywords (comma-separated):</strong></label>
-        <input type="text" name="keywords" id="keywords" placeholder="e.g., DWP, payment" required>
-        <button type="button" class="select-btn" onclick="selectKeywords()">Select All</button>
-        <button type="submit">Search</button>
-    </form>
+    <label><strong>Add new positive keywords (comma separated):</strong></label><br>
+    <input type="text" name="keywords" size="50"><br><br>
 
-    {% if history %}
-        <div class="keyword-history">
-            <h4>Previously Searched Keywords:</h4>
-            {% for kw in history %}
-                <a href="#" onclick="addKeyword('{{ kw }}')">{{ kw }}</a>
-            {% endfor %}
-        </div>
-    {% endif %}
-
-    <hr>
-
-    {% if results %}
-        <h3>Search Results:</h3>
-        {% for result in results %}
-            <div class="result">{{ result|safe }}</div>
-        {% endfor %}
-    {% elif keywords %}
-        <p>No matches found for: <strong>{{ keywords|join(', ') }}</strong></p>
-    {% endif %}
+    <label><strong>Add new negative keywords (comma separated):</strong></label><br>
+    <input type="text" name="negative_keywords" size="50"><br><br>
 
     {% if keyword_history %}
-<h3 class="mt-6 text-lg font-semibold">Previously Searched Keywords:</h3>
-<div class="keyword-history mb-4">
+    <label><strong>Select saved positive keywords:</strong></label><br>
     {% for kw in keyword_history %}
-        <a onclick="addKeyword('{{ kw }}')" class="cursor-pointer inline-block bg-gray-200 hover:bg-blue-200 text-sm text-gray-800 px-2 py-1 rounded m-1">{{ kw }}</a>
+        <label><input type="checkbox" name="saved_keywords" value="{{ kw }}"> {{ kw }}</label>
     {% endfor %}
-    <button type="button" onclick="selectKeywords()" class="ml-2 px-2 py-1 text-sm bg-blue-500 text-white rounded hover:bg-blue-600">Select All</button>
-</div>
+    <br><br>
+    {% endif %}
+
+    {% if negative_keyword_history %}
+    <label><strong>Select saved negative keywords:</strong></label><br>
+    {% for nkw in negative_keyword_history %}
+        <label><input type="checkbox" name="saved_negative_keywords" value="{{ nkw }}"> {{ nkw }}</label>
+    {% endfor %}
+    <br><br>
+    {% endif %}
+
+    <button type="submit">Search</button>
+</form>
+
+{% if results %}
+    <h2>Search Results</h2>
+    <ul>
+    {% for line in results %}
+        <li>{{ line | safe }}</li>
+    {% endfor %}
+    </ul>
+
+    <h3>Keyword Matches:</h3>
+    <ul>
+    {% for kw, count in counts.items() %}
+        <li><strong>{{ kw }}</strong>: {{ count }} matches</li>
+    {% endfor %}
+    </ul>
 {% endif %}
-
-<script>
-    function addKeyword(kw) {
-        let input = document.getElementById("keywords");
-        let current = input.value.split(",").map(k => k.trim()).filter(k => k);
-        if (!current.includes(kw)) {
-            current.push(kw);
-            input.value = current.join(", ");
-        }
-    }
-
-    function selectKeywords() {
-        const input = document.getElementById("keywords");
-        const historyTags = document.querySelectorAll(".keyword-history a");
-        const selected = new Set(input.value.split(",").map(k => k.trim()));
-
-        historyTags.forEach(tag => {
-            const kw = tag.textContent.trim();
-            selected.add(kw);
-        });
-
-        input.value = Array.from(selected).join(", ");
-        input.focus();
-    }
-</script>
-
-</body>
-</html>
