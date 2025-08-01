@@ -1,5 +1,6 @@
 import os
 import fitz  # PyMuPDF
+import sqlite3
 from flask import Flask, render_template, request
 from werkzeug.utils import secure_filename
 
@@ -7,78 +8,97 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-keyword_history = set()
-negative_keyword_history = set()
+# --- Setup database ---
+DB_PATH = "keywords.db"
 
-def extract_keyword_matches(pdf_path, keywords, negative_keywords):
+def init_db():
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS keywords (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    word TEXT NOT NULL,
+                    type TEXT CHECK(type IN ('positive','negative')) NOT NULL
+                 )''')
+    conn.commit()
+    conn.close()
+
+def save_keywords(words, keyword_type):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    for word in words:
+        c.execute("INSERT INTO keywords (word, type) VALUES (?, ?)", (word.lower(), keyword_type))
+    conn.commit()
+    conn.close()
+
+def get_keywords_by_type(keyword_type):
+    conn = sqlite3.connect(DB_PATH)
+    c = conn.cursor()
+    c.execute("SELECT word FROM keywords WHERE type = ?", (keyword_type,))
+    results = [row[0] for row in c.fetchall()]
+    conn.close()
+    return sorted(set(results))
+
+# --- PDF processing ---
+def extract_keyword_matches(pdf_path, positive_keywords, negative_keywords):
     results = []
-    keyword_counts = {kw.lower(): 0 for kw in keywords}
+    keyword_counts = {kw: 0 for kw in positive_keywords}
+
     with fitz.open(pdf_path) as doc:
         for page_num, page in enumerate(doc):
             lines = page.get_text("text").split('\n')
             for line in lines:
                 line_lower = line.lower()
-                if any(neg.lower() in line_lower for neg in negative_keywords):
-                    continue  # skip lines with negative keywords
-                matched = [kw for kw in keywords if kw.lower() in line_lower]
-                if matched:
-                    for kw in matched:
-                        keyword_counts[kw.lower()] += 1
-                    highlighted_line = line
-                    for kw in keywords:
-                        highlighted_line = highlighted_line.replace(
-                            kw, f"<mark>{kw}</mark>")
-                        highlighted_line = highlighted_line.replace(
-                            kw.upper(), f"<mark>{kw.upper()}</mark>")
-                        highlighted_line = highlighted_line.replace(
-                            kw.lower(), f"<mark>{kw.lower()}</mark>")
-                    results.append(
-                        f"✅ Page {page_num + 1} | 🔍 Matched: '{matched[0]}' | 💬 Line: {highlighted_line.strip()}")
+                if any(nk in line_lower for nk in negative_keywords):
+                    continue
+                for keyword in positive_keywords:
+                    if keyword in line_lower:
+                        keyword_counts[keyword] += 1
+                        highlighted = line
+                        for kw in positive_keywords:
+                            highlighted = highlighted.replace(kw, f"**{kw}**")
+                        results.append(
+                            f"✅ Page {page_num + 1} | 🔍 Matched: '{keyword}' | 💬 Line: {highlighted.strip()}"
+                        )
     return results, keyword_counts
 
+# --- Routes ---
 @app.route("/", methods=["GET", "POST"])
 def index():
     results = []
     counts = {}
-    keywords = []
+    positive_keywords = []
     negative_keywords = []
 
     if request.method == "POST":
         uploaded_file = request.files["pdf_file"]
+        pos_input = request.form.get("positive_keywords", "")
+        neg_input = request.form.get("negative_keywords", "")
+        positive_keywords = [kw.strip().lower() for kw in pos_input.split(",") if kw.strip()]
+        negative_keywords = [kw.strip().lower() for kw in neg_input.split(",") if kw.strip()]
 
-        # New keyword input from text box
-        keywords_text = request.form.get("keywords", "")
-        negative_keywords_text = request.form.get("negative_keywords", "")
-
-        new_keywords = [kw.strip() for kw in keywords_text.split(",") if kw.strip()]
-        new_negative_keywords = [kw.strip() for kw in negative_keywords_text.split(",") if kw.strip()]
-
-        # Checkbox selections
-        saved_keywords = request.form.getlist("saved_keywords")
-        saved_negative_keywords = request.form.getlist("saved_negative_keywords")
-
-        # Combine and deduplicate
-        keywords = list(set(new_keywords + saved_keywords))
-        negative_keywords = list(set(new_negative_keywords + saved_negative_keywords))
-
-        keyword_history.update(new_keywords)
-        negative_keyword_history.update(new_negative_keywords)
+        if request.form.get("save_keywords"):
+            save_keywords(positive_keywords, "positive")
+            save_keywords(negative_keywords, "negative")
 
         if uploaded_file and uploaded_file.filename.endswith(".pdf"):
             filename = secure_filename(uploaded_file.filename)
             filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             uploaded_file.save(filepath)
             try:
-                results, counts = extract_keyword_matches(filepath, keywords, negative_keywords)
+                results, counts = extract_keyword_matches(filepath, positive_keywords, negative_keywords)
             except Exception as e:
                 results = [f"❌ Error reading PDF: {str(e)}"]
 
+    # Load saved keywords for reuse
+    saved_pos_keywords = get_keywords_by_type("positive")
+    saved_neg_keywords = get_keywords_by_type("negative")
+
     return render_template("index.html",
                            results=results,
-                           keywords=keywords,
-                           keyword_history=sorted(keyword_history),
-                           negative_keyword_history=sorted(negative_keyword_history),
-                           counts=counts)
+                           counts=counts,
+                           saved_pos_keywords=saved_pos_keywords,
+                           saved_neg_keywords=saved_neg_keywords)
 
 if __name__ == "__main__":
+    init_db()
     app.run(debug=True)
