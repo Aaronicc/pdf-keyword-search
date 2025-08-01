@@ -1,121 +1,122 @@
+# This is for cross-reference purposes only and should not be used as the sole basis for your review.
+
 import os
 import fitz  # PyMuPDF
 import sqlite3
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, redirect, url_for
 from werkzeug.utils import secure_filename
-import sqlite3
-
-def init_db():
-    conn = sqlite3.connect("keywords.db")
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS keywords (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            word TEXT NOT NULL,
-            type TEXT CHECK(type IN ('positive', 'negative')) NOT NULL
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-# Initialize DB table when app starts
-init_db()
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+DB_FILE = 'keywords.db'
 
-# --- Setup database ---
-DB_PATH = "keywords.db"
 
+# === DB Setup ===
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS keywords (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    word TEXT NOT NULL,
-                    type TEXT CHECK(type IN ('positive','negative')) NOT NULL
-                 )''')
-    conn.commit()
-    conn.close()
+    with sqlite3.connect(DB_FILE) as conn:
+        c = conn.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS keywords (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                word TEXT NOT NULL,
+                type TEXT CHECK(type IN ('positive', 'negative')) NOT NULL
+            )
+        ''')
+        conn.commit()
 
-def save_keywords(words, keyword_type):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    for word in words:
-        c.execute("INSERT INTO keywords (word, type) VALUES (?, ?)", (word.lower(), keyword_type))
-    conn.commit()
-    conn.close()
+init_db()
+
+
+# === Keyword Utilities ===
+def add_keyword(word, keyword_type):
+    with sqlite3.connect(DB_FILE) as conn:
+        c = conn.cursor()
+        c.execute("INSERT INTO keywords (word, type) VALUES (?, ?)", (word.strip(), keyword_type))
+        conn.commit()
 
 def get_keywords_by_type(keyword_type):
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-    c.execute("SELECT word FROM keywords WHERE type = ?", (keyword_type,))
-    results = [row[0] for row in c.fetchall()]
-    conn.close()
-    return sorted(set(results))
+    with sqlite3.connect(DB_FILE) as conn:
+        c = conn.cursor()
+        c.execute("SELECT word FROM keywords WHERE type = ?", (keyword_type,))
+        return [row[0] for row in c.fetchall()]
 
-# --- PDF processing ---
+
+# === PDF Search ===
 def extract_keyword_matches(pdf_path, positive_keywords, negative_keywords):
     results = []
-    keyword_counts = {kw: 0 for kw in positive_keywords}
+    try:
+        doc = fitz.open(pdf_path)
+    except Exception as e:
+        return [], f"Error opening PDF: {e}"
 
-    with fitz.open(pdf_path) as doc:
-        for page_num, page in enumerate(doc):
-            lines = page.get_text("text").split('\n')
-            for line in lines:
-                line_lower = line.lower()
-                if any(nk in line_lower for nk in negative_keywords):
-                    continue
-                for keyword in positive_keywords:
-                    if keyword in line_lower:
-                        keyword_counts[keyword] += 1
-                        highlighted = line
-                        for kw in positive_keywords:
-                            highlighted = highlighted.replace(kw, f"**{kw}**")
-                        results.append(
-                            f"✅ Page {page_num + 1} | 🔍 Matched: '{keyword}' | 💬 Line: {highlighted.strip()}"
-                        )
-    return results, keyword_counts
+    positive_counts = {kw.lower(): 0 for kw in positive_keywords}
+    negative_counts = {kw.lower(): 0 for kw in negative_keywords}
 
-# --- Routes ---
-@app.route("/", methods=["GET", "POST"])
+    for page_num, page in enumerate(doc, start=1):
+        text = page.get_text()
+        lines = text.split('\n')
+        for line in lines:
+            line_lower = line.lower()
+            matched_keywords = []
+            for kw in positive_keywords:
+                if kw.lower() in line_lower:
+                    positive_counts[kw.lower()] += 1
+                    matched_keywords.append(kw)
+            for kw in negative_keywords:
+                if kw.lower() in line_lower:
+                    negative_counts[kw.lower()] += 1
+                    matched_keywords.append(kw)
+            if matched_keywords:
+                results.append((page_num, line.strip(), matched_keywords))
+
+    doc.close()
+    return results, {"positive": positive_counts, "negative": negative_counts}
+
+
+# === Routes ===
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    results = []
-    counts = {}
-    positive_keywords = []
-    negative_keywords = []
-
-    if request.method == "POST":
-        uploaded_file = request.files["pdf_file"]
-        pos_input = request.form.get("positive_keywords", "")
-        neg_input = request.form.get("negative_keywords", "")
-        positive_keywords = [kw.strip().lower() for kw in pos_input.split(",") if kw.strip()]
-        negative_keywords = [kw.strip().lower() for kw in neg_input.split(",") if kw.strip()]
-
-        if request.form.get("save_keywords"):
-            save_keywords(positive_keywords, "positive")
-            save_keywords(negative_keywords, "negative")
-
-        if uploaded_file and uploaded_file.filename.endswith(".pdf"):
-            filename = secure_filename(uploaded_file.filename)
-            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-            uploaded_file.save(filepath)
-            try:
-                results, counts = extract_keyword_matches(filepath, positive_keywords, negative_keywords)
-            except Exception as e:
-                results = [f"❌ Error reading PDF: {str(e)}"]
-
-    # Load saved keywords for reuse
     saved_pos_keywords = get_keywords_by_type("positive")
     saved_neg_keywords = get_keywords_by_type("negative")
+    results = []
+    match_counts = {}
+    message = ""
 
-    return render_template("index.html",
-                           results=results,
-                           counts=counts,
+    if request.method == 'POST':
+        if 'add_positive' in request.form:
+            new_kw = request.form.get('positive_keyword', '').strip()
+            if new_kw:
+                add_keyword(new_kw, 'positive')
+            return redirect(url_for('index'))
+
+        elif 'add_negative' in request.form:
+            new_kw = request.form.get('negative_keyword', '').strip()
+            if new_kw:
+                add_keyword(new_kw, 'negative')
+            return redirect(url_for('index'))
+
+        elif 'pdf' in request.files:
+            pdf_file = request.files['pdf']
+            if pdf_file.filename != '':
+                filename = secure_filename(pdf_file.filename)
+                filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+                pdf_file.save(filepath)
+
+                results, match_counts = extract_keyword_matches(
+                    filepath, saved_pos_keywords, saved_neg_keywords
+                )
+
+                if isinstance(match_counts, str):  # If error message returned
+                    message = match_counts
+
+    return render_template('index.html',
                            saved_pos_keywords=saved_pos_keywords,
-                           saved_neg_keywords=saved_neg_keywords)
+                           saved_neg_keywords=saved_neg_keywords,
+                           results=results,
+                           match_counts=match_counts,
+                           message=message)
 
-if __name__ == "__main__":
-    init_db()
+
+if __name__ == '__main__':
     app.run(debug=True)
