@@ -3,6 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <title>PDF Keyword Search</title>
+    <style>
+        .toggle-button {
+            margin-top: 10px;
+            cursor: pointer;
+            color: blue;
+            text-decoration: underline;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
 </head>
 <body>
     <h2>This is for cross-reference purposes only and should not be used as the sole basis for your review.</h2>
@@ -20,35 +31,43 @@
         <input type="submit" value="Upload & Scan">
     </form>
 
-    <h2>Saved Positive Keywords</h2>
-    <ul>
-        {% for k in pos_keywords %}
-        <li>
-            <form method="POST" action="{{ url_for('edit', keyword_id=k[0]) }}" style="display:inline;">
-                <input type="text" name="new_word" value="{{ k[1] }}">
-                <button type="submit">Edit</button>
-            </form>
-            <form method="POST" action="{{ url_for('delete', keyword_id=k[0]) }}" style="display:inline;">
-                <button type="submit">Delete</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
+    <div>
+        <h2>Saved Positive Keywords <span class="toggle-button" onclick="toggleSection('posSection')">[Show/Hide]</span></h2>
+        <div id="posSection">
+            <ul>
+                {% for k in pos_keywords %}
+                <li>
+                    <form method="POST" action="{{ url_for('edit', keyword_id=k[0]) }}" style="display:inline;">
+                        <input type="text" name="new_word" value="{{ k[1] }}">
+                        <button type="submit">Edit</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('delete', keyword_id=k[0]) }}" style="display:inline;">
+                        <button type="submit">Delete</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
 
-    <h2>Saved Negative Keywords</h2>
-    <ul>
-        {% for k in neg_keywords %}
-        <li>
-            <form method="POST" action="{{ url_for('edit', keyword_id=k[0]) }}" style="display:inline;">
-                <input type="text" name="new_word" value="{{ k[1] }}">
-                <button type="submit">Edit</button>
-            </form>
-            <form method="POST" action="{{ url_for('delete', keyword_id=k[0]) }}" style="display:inline;">
-                <button type="submit">Delete</button>
-            </form>
-        </li>
-        {% endfor %}
-    </ul>
+    <div>
+        <h2>Saved Negative Keywords <span class="toggle-button" onclick="toggleSection('negSection')">[Show/Hide]</span></h2>
+        <div id="negSection">
+            <ul>
+                {% for k in neg_keywords %}
+                <li>
+                    <form method="POST" action="{{ url_for('edit', keyword_id=k[0]) }}" style="display:inline;">
+                        <input type="text" name="new_word" value="{{ k[1] }}">
+                        <button type="submit">Edit</button>
+                    </form>
+                    <form method="POST" action="{{ url_for('delete', keyword_id=k[0]) }}" style="display:inline;">
+                        <button type="submit">Delete</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
 
     {% if results %}
         <h2>Keyword Matches</h2>
@@ -72,5 +91,12 @@
         <p><a href="{{ url_for('download_highlighted', filename=highlighted_pdf.split('/')[-1]) }}" target="_blank">Download Highlighted PDF</a></p>
         {% endif %}
     {% endif %}
+
+    <script>
+        function toggleSection(id) {
+            const section = document.getElementById(id);
+            section.classList.toggle('hidden');
+        }
+    </script>
 </body>
 </html>
