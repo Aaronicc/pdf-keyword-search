@@ -3,79 +3,93 @@
 <head>
     <meta charset="UTF-8">
     <title>PDF Keyword Search</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        textarea { width: 100%; height: 200px; margin-top: 10px; }
+        .keyword-group { margin-bottom: 10px; }
+        .keyword { display: inline-block; background: #f2f2f2; padding: 5px 10px; margin: 3px; border-radius: 5px; }
+        .matched-line { background: #ffffcc; padding: 5px; margin-bottom: 3px; border-left: 4px solid orange; }
+        .icon-btn { background: none; border: none; cursor: pointer; margin-left: 5px; color: red; }
+    </style>
+    <script>
+        function confirmDelete(form) {
+            if (confirm("Are you sure you want to delete this keyword?")) {
+                form.submit();
+            }
+        }
+        function showEditForm(id, oldValue) {
+            const container = document.getElementById(`keyword-container-${id}`);
+            container.innerHTML = `
+                <form method="POST" action="/edit_keyword/${id}" style="display:inline;">
+                    <input name="new_word" value="${oldValue}" required>
+                    <button type="submit">Save</button>
+                </form>`;
+        }
+    </script>
 </head>
-<body class="p-4">
-    <h2>🔍 PDF Keyword Search</h2>
+<body>
+    <h1>PDF Keyword Search</h1>
 
-    <form action="/add_keyword" method="POST" class="row g-2 mt-3">
-        <div class="col-md-4">
-            <input name="word" class="form-control" placeholder="Enter keyword" required>
-        </div>
-        <div class="col-md-3">
-            <select name="type" class="form-select">
-                <option value="positive">Positive</option>
-                <option value="negative">Negative</option>
-            </select>
-        </div>
-        <div class="col-md-3">
-            <button class="btn btn-success w-100">➕ Add Keyword</button>
-        </div>
-    </form>
-
-    <div class="mt-4">
-        <h5>Saved Positive Keywords</h5>
-        <ul class="list-group">
-            {% for id, word in pos_keywords %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span contenteditable="true" onblur="editKeyword({{ id }}, this.innerText)">{{ word }}</span>
-                    <button class="btn btn-sm btn-danger" onclick="confirmDelete({{ id }})">🗑️</button>
-                </li>
-            {% endfor %}
-        </ul>
-
-        <h5 class="mt-4">Saved Negative Keywords</h5>
-        <ul class="list-group">
-            {% for id, word in neg_keywords %}
-                <li class="list-group-item d-flex justify-content-between align-items-center">
-                    <span contenteditable="true" onblur="editKeyword({{ id }}, this.innerText)">{{ word }}</span>
-                    <button class="btn btn-sm btn-danger" onclick="confirmDelete({{ id }})">🗑️</button>
-                </li>
-            {% endfor %}
-        </ul>
-    </div>
-
-    <form action="/search_pdf" method="POST" enctype="multipart/form-data" class="mt-4">
-        <label for="pdf" class="form-label">Upload PDF to Search</label>
-        <input type="file" name="pdf" class="form-control" accept=".pdf" required>
-        <button class="btn btn-primary mt-2">🔍 Search PDF</button>
-    </form>
-
-    {% if highlighted_text %}
-    <div class="mt-5">
-        <h5>📄 PDF Content (with highlights):</h5>
-        <pre style="white-space: pre-wrap; background: #f8f9fa; padding: 1em; border-radius: 8px;"><code>{{ highlighted_text | safe }}</code></pre>
-    </div>
+    {% if message %}
+        <p><strong>{{ message }}</strong></p>
     {% endif %}
 
-<script>
-function confirmDelete(id) {
-    if (confirm("Are you sure you want to delete this keyword?")) {
-        $.post("/delete_keyword/" + id, () => location.reload());
-    }
-}
+    <h2>Upload PDF</h2>
+    <form method="POST" enctype="multipart/form-data" action="/">
+        <input type="file" name="pdf_file" accept=".pdf" required>
+        <button type="submit">Search PDF</button>
+    </form>
 
-function editKeyword(id, newWord) {
-    $.ajax({
-        url: "/edit_keyword/" + id,
-        method: "POST",
-        contentType: "application/json",
-        data: JSON.stringify({ new_word: newWord }),
-        success: () => console.log("Edited")
-    });
-}
-</script>
+    <h2>Positive Keywords</h2>
+    <div class="keyword-group">
+        {% for id, word in pos_keywords %}
+            <span class="keyword" id="keyword-container-{{ id }}">
+                {{ word }}
+                <button class="icon-btn" onclick="showEditForm({{ id }}, '{{ word }}')">✏️</button>
+                <form method="POST" action="/delete_keyword/{{ id }}" style="display:inline;">
+                    <button class="icon-btn" type="button" onclick="confirmDelete(this.form)">🗑️</button>
+                </form>
+            </span>
+        {% endfor %}
+    </div>
 
+    <form method="POST" action="/add_keyword">
+        <input name="word" placeholder="Add keyword" required>
+        <input type="hidden" name="type" value="positive">
+        <button type="submit">Add Positive</button>
+    </form>
+
+    <h2>Negative Keywords</h2>
+    <div class="keyword-group">
+        {% for id, word in neg_keywords %}
+            <span class="keyword" id="keyword-container-{{ id }}">
+                {{ word }}
+                <button class="icon-btn" onclick="showEditForm({{ id }}, '{{ word }}')">✏️</button>
+                <form method="POST" action="/delete_keyword/{{ id }}" style="display:inline;">
+                    <button class="icon-btn" type="button" onclick="confirmDelete(this.form)">🗑️</button>
+                </form>
+            </span>
+        {% endfor %}
+    </div>
+
+    <form method="POST" action="/add_keyword">
+        <input name="word" placeholder="Add keyword" required>
+        <input type="hidden" name="type" value="negative">
+        <button type="submit">Add Negative</button>
+    </form>
+
+    {% if matched_lines %}
+        <h2>Matched Text</h2>
+        <div>
+            {% for line in matched_lines %}
+                <div class="matched-line">{{ line }}</div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    {% if extracted_text %}
+        <h2>Full PDF Text</h2>
+        <textarea readonly>{{ extracted_text }}</textarea>
+    {% endif %}
 </body>
 </html>
