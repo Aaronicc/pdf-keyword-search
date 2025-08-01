@@ -1,78 +1,84 @@
-from flask import Flask, request, render_template
 import os
-import PyPDF2
-import re
-from datetime import datetime
+import fitz  # PyMuPDF
+from flask import Flask, render_template, request
+from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads'
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-UPLOAD_FOLDER = 'uploads'
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+keyword_history = set()
+negative_keyword_history = set()
 
-previous_keywords = []
-
-def extract_lines_with_keywords(pdf_path, keywords):
+def extract_keyword_matches(pdf_path, keywords, negative_keywords):
     results = []
     keyword_counts = {kw.lower(): 0 for kw in keywords}
-
-    try:
-        with open(pdf_path, "rb") as f:
-            reader = PyPDF2.PdfReader(f)
-            for page_num, page in enumerate(reader.pages):
-                try:
-                    text = page.extract_text()
-                    if text:
-                        lines = text.split("\n")
-                        for line in lines:
-                            for keyword in keywords:
-                                if keyword.lower() in line.lower():
-                                    # Find date in the line if any (format: DD MMM YY or D MMM YY)
-                                    match_date = re.search(r'\b\d{1,2} [A-Za-z]{3} \d{2}\b', line)
-                                    date_found = match_date.group(0) if match_date else "N/A"
-                                    keyword_counts[keyword.lower()] += 1
-                                    # Highlight keyword
-                                    highlighted_line = re.sub(f"(?i)({re.escape(keyword)})", r"<mark>\1</mark>", line)
-                                    results.append(f"✅ Page {page_num+1} | 📅 Date: {date_found} | 🔍 Matched: '{keyword}' | 💬 Line: {highlighted_line}")
-                                    break
-                except Exception as e:
-                    results.append(f"❌ Error reading page {page_num+1}: {str(e)}")
-    except Exception as e:
-        results.append(f"❌ Failed to read PDF: {str(e)}")
-
-    total_matches = sum(keyword_counts.values())
-    return results, {"total_matches": total_matches, "keyword_counts": keyword_counts}
+    with fitz.open(pdf_path) as doc:
+        for page_num, page in enumerate(doc):
+            lines = page.get_text("text").split('\n')
+            for line in lines:
+                line_lower = line.lower()
+                if any(neg.lower() in line_lower for neg in negative_keywords):
+                    continue  # skip lines with negative keywords
+                matched = [kw for kw in keywords if kw.lower() in line_lower]
+                if matched:
+                    for kw in matched:
+                        keyword_counts[kw.lower()] += 1
+                    highlighted_line = line
+                    for kw in keywords:
+                        highlighted_line = highlighted_line.replace(
+                            kw, f"<mark>{kw}</mark>")
+                        highlighted_line = highlighted_line.replace(
+                            kw.upper(), f"<mark>{kw.upper()}</mark>")
+                        highlighted_line = highlighted_line.replace(
+                            kw.lower(), f"<mark>{kw.lower()}</mark>")
+                    results.append(
+                        f"✅ Page {page_num + 1} | 🔍 Matched: '{matched[0]}' | 💬 Line: {highlighted_line.strip()}")
+    return results, keyword_counts
 
 @app.route("/", methods=["GET", "POST"])
 def index():
     results = []
-    summary = None
+    counts = {}
+    keywords = []
+    negative_keywords = []
 
     if request.method == "POST":
-        keywords = request.form.get("keywords", "").split(",")
-        keywords = [k.strip() for k in keywords if k.strip()]
+        uploaded_file = request.files["pdf_file"]
 
-        # Add previously selected checkboxes
-        keywords += request.form.getlist("previous_keywords")
-        keywords = list(set(k.lower() for k in keywords))  # unique, lowercase
+        # New keyword input from text box
+        keywords_text = request.form.get("keywords", "")
+        negative_keywords_text = request.form.get("negative_keywords", "")
 
-        if keywords:
-            for kw in keywords:
-                if kw not in previous_keywords:
-                    previous_keywords.append(kw)
+        new_keywords = [kw.strip() for kw in keywords_text.split(",") if kw.strip()]
+        new_negative_keywords = [kw.strip() for kw in negative_keywords_text.split(",") if kw.strip()]
 
-        uploaded_file = request.files.get("pdf_file")
-        if uploaded_file:
-            filename = uploaded_file.filename
-            filepath = os.path.join(UPLOAD_FOLDER, filename)
+        # Checkbox selections
+        saved_keywords = request.form.getlist("saved_keywords")
+        saved_negative_keywords = request.form.getlist("saved_negative_keywords")
+
+        # Combine and deduplicate
+        keywords = list(set(new_keywords + saved_keywords))
+        negative_keywords = list(set(new_negative_keywords + saved_negative_keywords))
+
+        keyword_history.update(new_keywords)
+        negative_keyword_history.update(new_negative_keywords)
+
+        if uploaded_file and uploaded_file.filename.endswith(".pdf"):
+            filename = secure_filename(uploaded_file.filename)
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             uploaded_file.save(filepath)
-            results, summary = extract_lines_with_keywords(filepath, keywords)
+            try:
+                results, counts = extract_keyword_matches(filepath, keywords, negative_keywords)
+            except Exception as e:
+                results = [f"❌ Error reading PDF: {str(e)}"]
 
-    return render_template(
-        "index.html",
-        results=results,
-        previous_keywords=previous_keywords,
-        summary=summary
-    )
+    return render_template("index.html",
+                           results=results,
+                           keywords=keywords,
+                           keyword_history=sorted(keyword_history),
+                           negative_keyword_history=sorted(negative_keyword_history),
+                           counts=counts)
 
 if __name__ == "__main__":
     app.run(debug=True)
