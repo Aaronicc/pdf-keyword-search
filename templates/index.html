@@ -4,92 +4,98 @@
     <meta charset="UTF-8">
     <title>PDF Keyword Search</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .section { margin-bottom: 20px; }
-        .hidden { display: none; }
-        .match-highlight { font-weight: bold; color: green; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background-color: #f4f4f4;
+        }
+        h2 {
+            margin-top: 30px;
+        }
+        .result-box {
+            background: #fff;
+            border-left: 4px solid #007BFF;
+            padding: 10px 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .toggle-section {
+            margin-top: 10px;
+        }
+        .keyword-list {
+            display: none;
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        button {
+            margin-top: 5px;
+        }
     </style>
     <script>
-        function toggleVisibility(id) {
-            const el = document.getElementById(id);
-            el.classList.toggle("hidden");
+        function toggleKeywords(id) {
+            var elem = document.getElementById(id);
+            elem.style.display = (elem.style.display === 'none') ? 'block' : 'none';
         }
     </script>
 </head>
 <body>
+    <h1>📄 PDF Keyword Search</h1>
 
-    <h2>This is for cross-reference purposes only and should not be used as the sole basis for your review.</h2>
+    <!-- Add Keyword Form -->
+    <h2>Add Keyword</h2>
+    <form action="/add_keyword" method="post">
+        <input type="text" name="keyword" placeholder="Enter keyword" required>
+        <select name="type">
+            <option value="positive">Positive</option>
+            <option value="negative">Negative</option>
+        </select>
+        <button type="submit">Add Keyword</button>
+    </form>
 
-    <!-- Add Keywords Form -->
-    <div class="section">
-        <h3>Add Keywords</h3>
-        <form action="/add_keywords" method="POST">
-            <label>Positive Keywords (comma-separated):</label><br>
-            <input type="text" name="positive_keywords" style="width: 100%;"><br><br>
-
-            <label>Negative Keywords (comma-separated):</label><br>
-            <input type="text" name="negative_keywords" style="width: 100%;"><br><br>
-
-            <button type="submit">💾 Save Keywords</button>
-        </form>
-    </div>
-
-    <!-- Toggle Saved Keywords -->
-    <div class="section">
-        <button onclick="toggleVisibility('savedKeywords')">🔽 Show/Hide Saved Keywords</button>
-        <div id="savedKeywords" class="hidden">
-            <h4>Saved Positive Keywords:</h4>
+    <!-- Show/Hide Keywords -->
+    <div class="toggle-section">
+        <button onclick="toggleKeywords('positive-kw')">Show/Hide Positive Keywords</button>
+        <div id="positive-kw" class="keyword-list">
             <ul>
-                {% for kw in saved_pos_keywords %}
-                    <li>{{ kw }}</li>
+                {% for word in pos_keywords %}
+                    <li>{{ word }}</li>
                 {% endfor %}
             </ul>
-            <h4>Saved Negative Keywords:</h4>
+        </div>
+
+        <button onclick="toggleKeywords('negative-kw')">Show/Hide Negative Keywords</button>
+        <div id="negative-kw" class="keyword-list">
             <ul>
-                {% for kw in saved_neg_keywords %}
-                    <li>{{ kw }}</li>
+                {% for word in neg_keywords %}
+                    <li>{{ word }}</li>
                 {% endfor %}
             </ul>
         </div>
     </div>
 
-    <!-- PDF Upload & Search -->
-    <div class="section">
-        <h3>Search in PDF</h3>
-        <form action="/" method="POST" enctype="multipart/form-data">
-            <label>Upload PDF:</label><br>
-            <input type="file" name="pdf_file" required><br><br>
+    <!-- PDF Upload Form -->
+    <h2>Upload and Search PDF</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="pdf" accept=".pdf" required>
+        <button type="submit">Search PDF</button>
+    </form>
 
-            <label>Search Keywords (comma-separated):</label><br>
-            <input type="text" name="keywords" style="width: 100%;"><br><br>
-
-            <button type="submit">🔍 Search PDF</button>
-        </form>
-    </div>
-
-    <!-- Results -->
+    <!-- Search Results -->
     {% if results %}
-        <div class="section">
-            <h3>Search Results</h3>
-            <ul>
-                {% for r in results %}
-                    <li>{{ r|safe }}</li>
-                {% endfor %}
-            </ul>
-        </div>
+        <h2>Search Results</h2>
+        {% for result in results %}
+            <div class="result-box">
+                <strong>Page {{ result.page }}</strong><br>
+                {% if result.found_positive %}
+                    <span style="color: green;">✅ Positive Keywords Found:</span>
+                    {{ result.found_positive | join(', ') }}<br>
+                {% endif %}
+                {% if result.found_negative %}
+                    <span style="color: red;">❌ Negative Keywords Found:</span>
+                    {{ result.found_negative | join(', ') }}<br>
+                {% endif %}
+            </div>
+        {% endfor %}
     {% endif %}
-
-    <!-- Summary -->
-    {% if counts %}
-        <div class="section">
-            <h3>Summary of Matches</h3>
-            <ul>
-                {% for k, v in counts.items() %}
-                    <li>{{ k }}: {{ v }} transaction{{ 's' if v != 1 else '' }}</li>
-                {% endfor %}
-            </ul>
-        </div>
-    {% endif %}
-
 </body>
 </html>
