@@ -124,3 +124,6 @@ def edit_keyword_route(keyword_id):
 if __name__ == "__main__":
     init_db()
     app.run(debug=True)
+else:
+    init_db()  # <-- ADD THIS LINE to run even on Render
+
