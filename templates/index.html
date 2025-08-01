@@ -1,46 +1,63 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>PDF Keyword Search</title>
     <style>
-        body { font-family: Arial; padding: 20px; }
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f4f4f4; }
+        .container { background: #fff; padding: 20px; border-radius: 8px; max-width: 800px; margin: auto; }
         textarea { width: 100%; height: 60px; margin-bottom: 10px; }
-        .result { margin-top: 10px; padding: 10px; border: 1px solid #ccc; background: #f9f9f9; }
-        .summary { margin-top: 10px; font-weight: bold; }
-        .highlight { font-weight: bold; background-color: yellow; }
+        .results { margin-top: 20px; }
+        .result-item { margin-bottom: 10px; padding: 10px; background: #eef; border-radius: 5px; }
+        .keyword-counts { margin-top: 20px; }
+        label { font-weight: bold; }
+        .saved { background: #e7ffe7; padding: 10px; border-radius: 5px; }
     </style>
 </head>
 <body>
-    <h2>PDF Keyword Search</h2>
-    <p style="color:red;"><b>This is for cross-reference purposes only and should not be used as the sole basis for your review.</b></p>
-
-    <form method="post" enctype="multipart/form-data">
-        <label>Upload PDF:</label><br>
-        <input type="file" name="pdf_file" accept=".pdf" required><br><br>
+<div class="container">
+    <h2>🔍 PDF Keyword Search</h2>
+    <form method="POST" enctype="multipart/form-data">
+        <label for="pdf_file">Upload PDF:</label><br>
+        <input type="file" name="pdf_file" accept="application/pdf" required><br><br>
 
         <label>Positive Keywords (comma separated):</label><br>
-        <textarea name="positive_keywords">{{ ', '.join(saved_pos_keywords) }}</textarea><br>
+        <textarea name="pos_keywords"></textarea><br>
+        <input type="checkbox" name="save_pos"> Save Positive Keywords<br><br>
 
         <label>Negative Keywords (comma separated):</label><br>
-        <textarea name="negative_keywords">{{ ', '.join(saved_neg_keywords) }}</textarea><br>
-
-        <input type="checkbox" name="save_keywords" value="1"> Save these keywords<br><br>
+        <textarea name="neg_keywords"></textarea><br>
+        <input type="checkbox" name="save_neg"> Save Negative Keywords<br><br>
 
         <button type="submit">Search PDF</button>
     </form>
 
-    {% if results %}
-        <div class="summary">🔍 Found Matches: {{ results | length }}</div>
-        <div class="summary">
-            {% for k, v in counts.items() %}
-                '{{ k }}': {{ v }} &nbsp;
-            {% endfor %}
-        </div>
+    <div class="saved">
+        <h4>📌 Saved Positive Keywords:</h4>
+        <p>{{ ', '.join(saved_pos_keywords) }}</p>
+        <h4>📌 Saved Negative Keywords:</h4>
+        <p>{{ ', '.join(saved_neg_keywords) }}</p>
+    </div>
 
-        <hr>
-        {% for result in results %}
-            <div class="result">{{ result }}</div>
+    {% if results %}
+    <div class="results">
+        <h3>✅ Matched Results:</h3>
+        {% for item in results %}
+            <div class="result-item">{{ item }}</div>
         {% endfor %}
+    </div>
     {% endif %}
+
+    {% if keyword_counts %}
+    <div class="keyword-counts">
+        <h3>📊 Keyword Match Counts:</h3>
+        <ul>
+        {% for kw, count in keyword_counts.items() %}
+            <li><strong>{{ kw }}</strong>: {{ count }}</li>
+        {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
 </body>
 </html>
