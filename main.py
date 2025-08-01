@@ -1,3 +1,13 @@
+from flask import Flask, render_template, request, redirect, url_for
+import os
+import fitz  # PyMuPDF
+import sqlite3
+from werkzeug.utils import secure_filename
+
+app = Flask(__name__)
+app.config['UPLOAD_FOLDER'] = 'uploads'
+os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+
 @app.route('/search_pdf', methods=['POST'])
 def search_pdf():
     file = request.files['pdf']
