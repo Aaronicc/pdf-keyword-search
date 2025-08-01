@@ -62,3 +62,7 @@ def search_pdf():
                                neg_keywords=get_keywords_by_type("negative"),
                                results=results)
     return redirect('/')
+
+if __name__ == "__main__":
+    app.run(debug=True)
+
