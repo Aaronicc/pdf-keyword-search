@@ -79,7 +79,12 @@
                 <ul>
                     {% for match in item.matches %}
                         <li class="{{ 'highlight-positive' if match.type == 'positive' else 'highlight-negative' }}">
-                            {{ match.keyword }} — {{ match.count }} match{{ 'es' if match.count > 1 else '' }}
+                            <strong>{{ match.keyword }}</strong> — {{ match.count }} match{{ 'es' if match.count > 1 else '' }}
+                            <ul>
+                                {% for snippet in match.snippets %}
+                                   <li>... {{ snippet }} ...</li>
+                                {% endfor %}
+                           </ul>
                         </li>
                     {% endfor %}
                 </ul>
