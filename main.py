@@ -3,6 +3,7 @@ import sqlite3
 import fitz  # PyMuPDF
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
+import re
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -38,22 +39,40 @@ def get_keywords():
     conn.close()
     return pos_keywords, neg_keywords
 
-# ✅ Extract matching keywords from PDF
+# ✅ Extract matching keywords from PDF (fixed logic)
 def extract_keyword_matches(pdf_path, pos_keywords, neg_keywords):
     doc = fitz.open(pdf_path)
     results = []
+
     for page_num, page in enumerate(doc, start=1):
         text = page.get_text()
-        found_positive = [kw for kw in pos_keywords if kw.lower() in text.lower()]
-        found_negative = [kw for kw in neg_keywords if kw.lower() in text.lower()]
+        text_lower = text.lower()
+        found_positive = []
+        found_negative = []
+
+        for kw in pos_keywords:
+            if kw.lower() in text_lower:
+                found_positive.append(kw)
+
+        for kw in neg_keywords:
+            if kw.lower() in text_lower:
+                found_negative.append(kw)
+
         if found_positive or found_negative:
-            snippet = text[:300].replace('\n', ' ') + ('...' if len(text) > 300 else '')
+            snippet = text[:300].replace('\n', ' ')
+            # Highlight matched keywords in snippet
+            for kw in found_positive:
+                snippet = re.sub(f"(?i)({re.escape(kw)})", r"<mark>\1</mark>", snippet)
+            for kw in found_negative:
+                snippet = re.sub(f"(?i)({re.escape(kw)})", r"<mark class='neg'>\1</mark>", snippet)
+
             results.append({
                 'page': page_num,
                 'found_positive': found_positive,
                 'found_negative': found_negative,
-                'snippet': snippet
+                'snippet': snippet + ('...' if len(text) > 300 else '')
             })
+
     return results
 
 # ✅ Home page and PDF upload handler
