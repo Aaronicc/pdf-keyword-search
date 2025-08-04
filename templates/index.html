@@ -1,235 +1,237 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>PDF Keyword Search</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: #f8f9fa;
-            margin: 0;
-            padding: 40px;
-            color: #333;
-        }
-        h1 {
-            color: #343a40;
-        }
-        .section {
-            margin-bottom: 30px;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .results {
-            background-color: #f1f3f5;
-            border: 1px solid #dee2e6;
-            padding: 15px;
-            border-radius: 8px;
-        }
-        .keywords {
-            display: none;
-            margin-top: 15px;
-        }
-        .highlight {
-            background-color: #ffeb3b;
-            font-weight: bold;
-        }
-        .btn-icon {
-            border: none;
-            background: none;
-            cursor: pointer;
-            font-size: 16px;
-        }
-        button {
-            padding: 8px 14px;
-            border-radius: 6px;
-            border: none;
-            background-color: #007bff;
-            color: white;
-            font-weight: 500;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #0056b3;
-        }
-        input[type="file"],
-        input[type="text"],
-        input[type="password"],
-        select {
-            padding: 8px;
-            border: 1px solid #ced4da;
-            border-radius: 6px;
-            margin-right: 10px;
-        }
-        ul {
-            list-style: none;
-            padding-left: 0;
-        }
-        li {
-            margin-bottom: 6px;
-        }
-        .modal {
-            display: none; 
-            position: fixed;
-            z-index: 1;
-            left: 0; top: 0;
-            width: 100%; height: 100%;
-            overflow: auto;
-            background-color: rgba(0,0,0,0.4);
-        }
-        .modal-content {
-            background-color: #fff;
-            margin: 15% auto;
-            padding: 20px;
-            border: 1px solid #888;
-            border-radius: 8px;
-            width: 300px;
-        }
-    </style>
-    <script>
-        function toggleKeywords() {
-            const keywordsDiv = document.getElementById("keywords-section");
-            keywordsDiv.style.display = keywordsDiv.style.display === "none" ? "block" : "none";
-        }
+  <meta charset="UTF-8" />
+  <title>PDF Keyword Search</title>
+  <style>
+    :root {
+      --bg-color: #f0f0f0;
+      --text-color: #222;
+      --card-bg: #fff;
+      --highlight-color: #ffc107;
+      --button-bg: #007bff;
+      --button-hover: #0056b3;
+    }
 
-        function openPasswordModal(keyword) {
-            document.getElementById("modalKeyword").value = keyword;
-            document.getElementById("modalPassword").value = "";
-            document.getElementById("passwordModal").style.display = "block";
-        }
+    [data-theme="dark"] {
+      --bg-color: #1f1f1f;
+      --text-color: #eaeaea;
+      --card-bg: #2a2a2a;
+    }
 
-        function closePasswordModal() {
-            document.getElementById("passwordModal").style.display = "none";
-        }
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      margin: 0;
+      padding: 40px;
+      transition: background-color 0.3s, color 0.3s;
+    }
 
-        function submitDeleteForm() {
-            const keyword = document.getElementById("modalKeyword").value;
-            const password = document.getElementById("modalPassword").value;
-            const form = document.getElementById("delete-" + keyword);
-            const input = document.createElement("input");
-            input.type = "hidden";
-            input.name = "password";
-            input.value = password;
-            form.appendChild(input);
-            form.submit();
-        }
+    h1 {
+      margin-top: 0;
+    }
 
-        window.onclick = function(event) {
-            const modal = document.getElementById("passwordModal");
-            if (event.target == modal) {
-                closePasswordModal();
-            }
-        }
-    </script>
+    .section {
+      background-color: var(--card-bg);
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 30px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+
+    input, select, button {
+      padding: 8px;
+      border-radius: 6px;
+      border: 1px solid #888;
+      margin: 4px 0;
+      font-size: 14px;
+    }
+
+    input, select {
+      background-color: var(--card-bg);
+      color: var(--text-color);
+    }
+
+    input[type="password"] {
+      letter-spacing: 1px;
+    }
+
+    button {
+      background-color: var(--button-bg);
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: var(--button-hover);
+    }
+
+    .results {
+      background: var(--card-bg);
+      border: 1px solid #444;
+    }
+
+    .highlight {
+      background-color: var(--highlight-color);
+      font-weight: bold;
+    }
+
+    ul {
+      list-style: none;
+      padding-left: 0;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    .btn-icon {
+      background: none;
+      border: none;
+      color: #ff4d4d;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .theme-toggle {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      font-size: 20px;
+      cursor: pointer;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      box-shadow: 0 0 10px #000;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.3s ease, transform 0.3s ease;
+      z-index: 999;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Spinner */
+    #loadingSpinner {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 999;
+    }
+
+    .spinner {
+      border: 6px solid #ccc;
+      border-top: 6px solid #007bff;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+  </style>
 </head>
-<body>
+<body data-theme="light">
+  <div class="theme-toggle" onclick="toggleTheme()">🌙</div>
+  <div id="loadingSpinner"><div class="spinner"></div></div>
+  <div id="toast" class="toast"></div>
 
-    <h1>PDF Keyword Search</h1>
+  <h1>PDF Keyword Search</h1>
 
-    {% with messages = get_flashed_messages(with_categories=true) %}
-      {% if messages %}
-        <ul style="color: red;">
-          {% for category, message in messages %}
-            <li>{{ message }}</li>
-          {% endfor %}
-        </ul>
-      {% endif %}
-    {% endwith %}
-
-    <form method="POST" enctype="multipart/form-data" class="section">
-        <input type="file" name="pdf" required>
-        <button type="submit">Upload and Search</button>
-    </form>
-
-    <div class="section">
-        <button onclick="toggleKeywords()">Add / Manage Keywords</button>
-        <div id="keywords-section" class="keywords">
-            <h3>Positive Keywords</h3>
-            <ul>
-                {% for kw in pos_keywords %}
-                <li>
-                    {{ kw }}
-                    <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
-                        <button type="button" class="btn-icon" onclick="openPasswordModal('{{ kw }}')">🗑️</button>
-                    </form>
-                </li>
-                {% endfor %}
-            </ul>
-            <h3>Negative Keywords</h3>
-            <ul>
-                {% for kw in neg_keywords %}
-                <li>
-                    {{ kw }}
-                    <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
-                        <button type="button" class="btn-icon" onclick="openPasswordModal('{{ kw }}')">🗑️</button>
-                    </form>
-                </li>
-                {% endfor %}
-            </ul>
-            <form method="POST" action="{{ url_for('add_keyword') }}">
-                <input type="text" name="keyword" placeholder="Enter keyword" required>
-                <select name="type">
-                    <option value="positive">Positive</option>
-                    <option value="negative">Negative</option>
-                </select>
-                <button type="submit">Add Keyword</button>
-            </form>
-        </div>
-    </div>
-
-    {% if summary_count %}
-    <div class="section results">
-        <h3>Keyword Summary</h3>
-        <p><strong>Positive:</strong>
-        {% for kw, count in summary_count['positive'].items() %}
-            {{ kw }} ({{ count }}){% if not loop.last %}, {% endif %}
-        {% endfor %}
-        </p>
-        <p><strong>Negative:</strong>
-        {% for kw, count in summary_count['negative'].items() %}
-            {{ kw }} ({{ count }}){% if not loop.last %}, {% endif %}
-        {% endfor %}
-        </p>
-    </div>
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <script>
+        window.addEventListener("DOMContentLoaded", () => {
+          showToast("{{ messages[0][1] }}");
+        });
+      </script>
     {% endif %}
+  {% endwith %}
 
-    {% if results %}
-    <div class="section results">
-        <h3>Match Results</h3>
-        {% for result in results %}
-        <div style="margin-bottom: 20px;">
-            <strong>Page {{ result.page }}</strong><br>
-            Positive: {{ result.found_positive | join(', ') or 'None' }}<br>
-            Negative: {{ result.found_negative | join(', ') or 'None' }}<br>
-            <ul>
-                {% for line in result.lines %}
-                <li>
-                    {% for word in line.split() %}
-                        {% if word.lower() in result.found_positive|map('lower') or word.lower() in result.found_negative|map('lower') %}
-                            <span class="highlight">{{ word }}</span>
-                        {% else %}
-                            {{ word }}
-                        {% endif %}
-                    {% endfor %}
-                </li>
-                {% endfor %}
-            </ul>
-        </div>
+  <form method="POST" enctype="multipart/form-data" class="section" onsubmit="showSpinner()">
+    <input type="file" name="pdf" required>
+    <button type="submit">Upload and Search</button>
+  </form>
+
+  <div class="section">
+    <button onclick="toggleKeywords()">Add / Manage Keywords</button>
+    <div id="keywords-section" style="display: none;">
+      <h3>Positive Keywords</h3>
+      <ul>
+        {% for kw in pos_keywords %}
+        <li>
+          {{ kw }}
+          <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
+            <button type="button" class="btn-icon" onclick="openPasswordModal('{{ kw }}')">🗑️</button>
+          </form>
+        </li>
         {% endfor %}
+      </ul>
+      <h3>Negative Keywords</h3>
+      <ul>
+        {% for kw in neg_keywords %}
+        <li>
+          {{ kw }}
+          <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
+            <button type="button" class="btn-icon" onclick="openPasswordModal('{{ kw }}')">🗑️</button>
+          </form>
+        </li>
+        {% endfor %}
+      </ul>
+      <form method="POST" action="{{ url_for('add_keyword') }}">
+        <input type="text" name="keyword" placeholder="Enter keyword" required>
+        <select name="type">
+          <option value="positive">Positive</option>
+          <option value="negative">Negative</option>
+        </select>
+        <button type="submit">Add Keyword</button>
+      </form>
     </div>
-    {% endif %}
+  </div>
 
-    <div id="passwordModal" class="modal">
-        <div class="modal-content">
-            <p>Enter password to delete keyword:</p>
-            <input type="hidden" id="modalKeyword">
-            <input type="password" id="modalPassword" placeholder="Password" required>
-            <br><br>
-            <button onclick="submitDeleteForm()">Confirm</button>
-            <button onclick="closePasswordModal()">Cancel</button>
-        </div>
-    </div>
+  {% if summary_count %}
+  <div class="section results">
+    <h3>Keyword Summary</h3>
+    <p><strong>Positive:</strong>
+      {% for kw, count in summary_count['positive'].items() %}
+        {{ kw }} ({{ count }}){% if not loop.last %}, {% endif %}
+      {% endfor %}
+    </p>
+    <p><strong>Negative:</strong>
+      {% for kw, count in summary_count['negative'].items() %}
+        {{ kw }} ({{ count }}){% if not loop.last %}, {% endif %}
+      {% endfor %}
+    </p>
+  </div>
+  {% endif %}
 
-</body>
-</html>
+  {% if results %}
+  <div class="section results">
+    <h3>Match Results</h3>
+    {% for result in results %}
+    <div style="margin-bottom: 20px;">
+      <strong>Page {{ result.page }}</strong><br>
+      Positive: {{ result.found_positive | join(', ') or 'None' }}<br>
+      Negative: {{ result.found_negative | join(', ') or 'None' }}<br>
+      <ul>
+        {% for line in result.lines %}
+        <li>
+          {% for word in line.split() %}
+            {% if word.lower() in result.found_positive|map('lower') or word.lower() in result.found_negative|map('lower') %}
