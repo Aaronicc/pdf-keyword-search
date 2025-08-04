@@ -1,19 +1,3 @@
-def initialize_db():
-    conn = sqlite3.connect('keywords.db')
-    c = conn.cursor()
-    c.execute('''
-    CREATE TABLE IF NOT EXISTS keywords (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        keyword TEXT NOT NULL,
-        type TEXT CHECK(type IN ('positive', 'negative')) NOT NULL
-    )
-    ''')
-    conn.commit()
-    conn.close()
-
-# Call this once on app startup
-initialize_db()
-
 import os
 import sqlite3
 import fitz  # PyMuPDF
@@ -27,19 +11,23 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 ADMIN_PASSWORD = 'Santiago01'
 
-def init_db():
+# ✅ Initialize database on startup
+def initialize_db():
     conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
     c.execute('''
-        CREATE TABLE IF NOT EXISTS keywords (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            keyword TEXT NOT NULL,
-            type TEXT CHECK(type IN ('positive', 'negative')) NOT NULL
-        )
+    CREATE TABLE IF NOT EXISTS keywords (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        keyword TEXT NOT NULL,
+        type TEXT CHECK(type IN ('positive', 'negative')) NOT NULL
+    )
     ''')
     conn.commit()
     conn.close()
 
+initialize_db()
+
+# ✅ Fetch keywords from the database
 def get_keywords():
     conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
@@ -50,6 +38,7 @@ def get_keywords():
     conn.close()
     return pos_keywords, neg_keywords
 
+# ✅ Extract matching keywords from PDF
 def extract_keyword_matches(pdf_path, pos_keywords, neg_keywords):
     doc = fitz.open(pdf_path)
     results = []
@@ -67,6 +56,7 @@ def extract_keyword_matches(pdf_path, pos_keywords, neg_keywords):
             })
     return results
 
+# ✅ Home page and PDF upload handler
 @app.route('/', methods=['GET', 'POST'])
 def index():
     pos_keywords, neg_keywords = get_keywords()
@@ -86,6 +76,7 @@ def index():
             results = extract_keyword_matches(pdf_path, pos_keywords, neg_keywords)
     return render_template('index.html', pos_keywords=pos_keywords, neg_keywords=neg_keywords, results=results)
 
+# ✅ Add new keyword
 @app.route('/add_keyword', methods=['POST'])
 def add_keyword():
     keyword = request.form['keyword'].strip()
@@ -98,6 +89,7 @@ def add_keyword():
         conn.close()
     return redirect(url_for('index'))
 
+# ✅ Delete keyword (with password protection)
 @app.route('/delete_keyword/<string:keyword>', methods=['POST'])
 def delete_keyword(keyword):
     password = request.form.get('password')
@@ -112,5 +104,4 @@ def delete_keyword(keyword):
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    init_db()
     app.run(debug=True)
