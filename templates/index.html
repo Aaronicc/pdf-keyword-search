@@ -4,12 +4,88 @@
     <meta charset="UTF-8">
     <title>PDF Keyword Search</title>
     <style>
-        body { font-family: Arial, sans-serif; padding: 20px; }
-        .section { margin-bottom: 20px; }
-        .results { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
-        .keywords { display: none; margin-top: 10px; }
-        .highlight { background-color: yellow; font-weight: bold; }
-        .btn-icon { border: none; background: none; cursor: pointer; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f8f9fa;
+            margin: 0;
+            padding: 40px;
+            color: #333;
+        }
+        h1 {
+            color: #343a40;
+        }
+        .section {
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .results {
+            background-color: #f1f3f5;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            border-radius: 8px;
+        }
+        .keywords {
+            display: none;
+            margin-top: 15px;
+        }
+        .highlight {
+            background-color: #ffeb3b;
+            font-weight: bold;
+        }
+        .btn-icon {
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button {
+            padding: 8px 14px;
+            border-radius: 6px;
+            border: none;
+            background-color: #007bff;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        input[type="file"],
+        input[type="text"],
+        input[type="password"],
+        select {
+            padding: 8px;
+            border: 1px solid #ced4da;
+            border-radius: 6px;
+            margin-right: 10px;
+        }
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        li {
+            margin-bottom: 6px;
+        }
+        .modal {
+            display: none; 
+            position: fixed;
+            z-index: 1;
+            left: 0; top: 0;
+            width: 100%; height: 100%;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .modal-content {
+            background-color: #fff;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
+            border-radius: 8px;
+            width: 300px;
+        }
     </style>
     <script>
         function toggleKeywords() {
@@ -17,16 +93,32 @@
             keywordsDiv.style.display = keywordsDiv.style.display === "none" ? "block" : "none";
         }
 
-        function confirmDelete(keyword) {
-            const password = prompt("Enter password to delete:");
-            if (password) {
-                const form = document.getElementById("delete-" + keyword);
-                const input = document.createElement("input");
-                input.type = "hidden";
-                input.name = "password";
-                input.value = password;
-                form.appendChild(input);
-                form.submit();
+        function openPasswordModal(keyword) {
+            document.getElementById("modalKeyword").value = keyword;
+            document.getElementById("modalPassword").value = "";
+            document.getElementById("passwordModal").style.display = "block";
+        }
+
+        function closePasswordModal() {
+            document.getElementById("passwordModal").style.display = "none";
+        }
+
+        function submitDeleteForm() {
+            const keyword = document.getElementById("modalKeyword").value;
+            const password = document.getElementById("modalPassword").value;
+            const form = document.getElementById("delete-" + keyword);
+            const input = document.createElement("input");
+            input.type = "hidden";
+            input.name = "password";
+            input.value = password;
+            form.appendChild(input);
+            form.submit();
+        }
+
+        window.onclick = function(event) {
+            const modal = document.getElementById("passwordModal");
+            if (event.target == modal) {
+                closePasswordModal();
             }
         }
     </script>
@@ -45,7 +137,7 @@
       {% endif %}
     {% endwith %}
 
-    <form method="POST" enctype="multipart/form-data">
+    <form method="POST" enctype="multipart/form-data" class="section">
         <input type="file" name="pdf" required>
         <button type="submit">Upload and Search</button>
     </form>
@@ -59,7 +151,7 @@
                 <li>
                     {{ kw }}
                     <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
-                        <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}')">🗑️</button>
+                        <button type="button" class="btn-icon" onclick="openPasswordModal('{{ kw }}')">🗑️</button>
                     </form>
                 </li>
                 {% endfor %}
@@ -70,7 +162,7 @@
                 <li>
                     {{ kw }}
                     <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
-                        <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}')">🗑️</button>
+                        <button type="button" class="btn-icon" onclick="openPasswordModal('{{ kw }}')">🗑️</button>
                     </form>
                 </li>
                 {% endfor %}
@@ -106,7 +198,7 @@
     <div class="section results">
         <h3>Match Results</h3>
         {% for result in results %}
-        <div>
+        <div style="margin-bottom: 20px;">
             <strong>Page {{ result.page }}</strong><br>
             Positive: {{ result.found_positive | join(', ') or 'None' }}<br>
             Negative: {{ result.found_negative | join(', ') or 'None' }}<br>
@@ -127,6 +219,17 @@
         {% endfor %}
     </div>
     {% endif %}
+
+    <div id="passwordModal" class="modal">
+        <div class="modal-content">
+            <p>Enter password to delete keyword:</p>
+            <input type="hidden" id="modalKeyword">
+            <input type="password" id="modalPassword" placeholder="Password" required>
+            <br><br>
+            <button onclick="submitDeleteForm()">Confirm</button>
+            <button onclick="closePasswordModal()">Cancel</button>
+        </div>
+    </div>
 
 </body>
 </html>
