@@ -235,3 +235,91 @@
         <li>
           {% for word in line.split() %}
             {% if word.lower() in result.found_positive|map('lower') or word.lower() in result.found_negative|map('lower') %}
+              <span class="highlight">{{ word }}</span>
+            {% else %}
+              {{ word }}
+            {% endif %}
+          {% endfor %}
+        </li>
+        {% endfor %}
+      </ul>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <!-- Modal -->
+  <div id="passwordModal" class="modal" style="display:none;">
+    <div class="modal-content">
+      <p>Enter password to delete keyword:</p>
+      <input type="hidden" id="modalKeyword">
+      <input type="password" id="modalPassword" placeholder="Password" required>
+      <br><br>
+      <button onclick="submitDeleteForm()">Confirm</button>
+      <button onclick="closePasswordModal()">Cancel</button>
+    </div>
+  </div>
+
+  <script>
+    function toggleKeywords() {
+      const section = document.getElementById("keywords-section");
+      section.style.display = section.style.display === "none" ? "block" : "none";
+    }
+
+    function openPasswordModal(keyword) {
+      document.getElementById("modalKeyword").value = keyword;
+      document.getElementById("modalPassword").value = "";
+      document.getElementById("passwordModal").style.display = "block";
+    }
+
+    function closePasswordModal() {
+      document.getElementById("passwordModal").style.display = "none";
+    }
+
+    function submitDeleteForm() {
+      const keyword = document.getElementById("modalKeyword").value;
+      const password = document.getElementById("modalPassword").value;
+      const form = document.getElementById("delete-" + keyword);
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "password";
+      input.value = password;
+      form.appendChild(input);
+      form.submit();
+    }
+
+    window.onclick = function(event) {
+      const modal = document.getElementById("passwordModal");
+      if (event.target == modal) {
+        closePasswordModal();
+      }
+    }
+
+    function showSpinner() {
+      document.getElementById("loadingSpinner").style.display = "block";
+    }
+
+    function showToast(message) {
+      const toast = document.getElementById("toast");
+      toast.textContent = message;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 3000);
+    }
+
+    function toggleTheme() {
+      const body = document.body;
+      const current = body.getAttribute("data-theme");
+      const next = current === "dark" ? "light" : "dark";
+      body.setAttribute("data-theme", next);
+      localStorage.setItem("theme", next);
+      document.querySelector(".theme-toggle").textContent = next === "dark" ? "☀️" : "🌙";
+    }
+
+    window.onload = () => {
+      const savedTheme = localStorage.getItem("theme") || "light";
+      document.body.setAttribute("data-theme", savedTheme);
+      document.querySelector(".theme-toggle").textContent = savedTheme === "dark" ? "☀️" : "🌙";
+    }
+  </script>
+</body>
+</html>
