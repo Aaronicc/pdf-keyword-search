@@ -5,30 +5,33 @@ from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = 'your_secret_key'
 app.config['UPLOAD_FOLDER'] = 'uploads'
+app.secret_key = 'your_secret_key'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 ADMIN_PASSWORD = 'Santiago01'
-DATABASE = 'keywords.db'
+
+# Initialize database
 
 def initialize_db():
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
     c.execute('''
-        CREATE TABLE IF NOT EXISTS keywords (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            keyword TEXT NOT NULL,
-            type TEXT CHECK(type IN ('positive', 'negative')) NOT NULL
-        )
+    CREATE TABLE IF NOT EXISTS keywords (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        keyword TEXT NOT NULL UNIQUE,
+        type TEXT CHECK(type IN ('positive', 'negative')) NOT NULL
+    )
     ''')
     conn.commit()
     conn.close()
 
 initialize_db()
 
+# Fetch keywords
+
 def get_keywords():
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
     c.execute("SELECT keyword, type FROM keywords")
     keywords = c.fetchall()
@@ -37,84 +40,79 @@ def get_keywords():
     conn.close()
     return pos_keywords, neg_keywords
 
+# Extract keyword matches from PDF
+
 def extract_keyword_matches(pdf_path, pos_keywords, neg_keywords):
     doc = fitz.open(pdf_path)
     results = []
-    summary_count = {'positive': {}, 'negative': {}}
+    summary_counts = {'positive': {}, 'negative': {}}
 
     for page_num, page in enumerate(doc, start=1):
-        lines = page.get_text().split('\n')
-        found_positive, found_negative = set(), set()
-        line_matches = []
+        text = page.get_text()
+        found_positive = []
+        found_negative = []
 
-        for line in lines:
-            lower_line = line.lower()
-            line_pos = [kw for kw in pos_keywords if kw.lower() in lower_line]
-            line_neg = [kw for kw in neg_keywords if kw.lower() in lower_line]
-            if line_pos or line_neg:
-                found_positive.update(line_pos)
-                found_negative.update(line_neg)
-                line_matches.append(line.strip())
+        for kw in pos_keywords:
+            if kw.lower() in text.lower():
+                found_positive.append(kw)
+                summary_counts['positive'][kw] = summary_counts['positive'].get(kw, 0) + text.lower().count(kw.lower())
 
-                for kw in line_pos:
-                    summary_count['positive'][kw] = summary_count['positive'].get(kw, 0) + 1
-                for kw in line_neg:
-                    summary_count['negative'][kw] = summary_count['negative'].get(kw, 0) + 1
+        for kw in neg_keywords:
+            if kw.lower() in text.lower():
+                found_negative.append(kw)
+                summary_counts['negative'][kw] = summary_counts['negative'].get(kw, 0) + text.lower().count(kw.lower())
 
         if found_positive or found_negative:
+            snippet = "\n".join([line.strip() for line in text.splitlines() if any(kw.lower() in line.lower() for kw in found_positive + found_negative)])
             results.append({
                 'page': page_num,
-                'found_positive': list(found_positive),
-                'found_negative': list(found_negative),
-                'lines': line_matches
+                'found_positive': found_positive,
+                'found_negative': found_negative,
+                'snippet': snippet.strip()
             })
 
-    return results, summary_count
+    return results, summary_counts
+
+# Main page
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     pos_keywords, neg_keywords = get_keywords()
     results = []
-    summary_count = {}
-
+    summary_counts = {'positive': {}, 'negative': {}}
     if request.method == 'POST':
-        file = request.files.get('pdf')
-        if not file or file.filename == '':
-            flash('No file selected')
+        if 'pdf' not in request.files:
+            flash('No file part')
             return redirect(request.url)
+        file = request.files['pdf']
+        if file.filename == '':
+            flash('No selected file')
+            return redirect(request.url)
+        if file:
+            filename = secure_filename(file.filename)
+            pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(pdf_path)
+            results, summary_counts = extract_keyword_matches(pdf_path, pos_keywords, neg_keywords)
+    return render_template('index.html', pos_keywords=pos_keywords, neg_keywords=neg_keywords, results=results, summary_counts=summary_counts)
 
-        filename = secure_filename(file.filename)
-        pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(pdf_path)
-
-        results, summary_count = extract_keyword_matches(pdf_path, pos_keywords, neg_keywords)
-
-    return render_template(
-        'index.html',
-        pos_keywords=pos_keywords,
-        neg_keywords=neg_keywords,
-        results=results,
-        summary_count=summary_count
-    )
+# Add keyword
 
 @app.route('/add_keyword', methods=['POST'])
 def add_keyword():
     keyword = request.form['keyword'].strip()
     type_ = request.form['type']
-    if not keyword or type_ not in ['positive', 'negative']:
-        return redirect(url_for('index'))
-
-    conn = sqlite3.connect(DATABASE)
-    c = conn.cursor()
-    c.execute("SELECT 1 FROM keywords WHERE LOWER(keyword) = LOWER(?)", (keyword,))
-    if c.fetchone():
-        flash(f"Keyword '{keyword}' already exists.")
-    else:
-        c.execute("INSERT INTO keywords (keyword, type) VALUES (?, ?)", (keyword, type_))
-        conn.commit()
-        flash(f"Keyword '{keyword}' added.")
-    conn.close()
+    if keyword and type_ in ['positive', 'negative']:
+        try:
+            conn = sqlite3.connect('keywords.db')
+            c = conn.cursor()
+            c.execute("INSERT INTO keywords (keyword, type) VALUES (?, ?)", (keyword, type_))
+            conn.commit()
+            conn.close()
+        except sqlite3.IntegrityError:
+            flash('Keyword already exists.')
     return redirect(url_for('index'))
+
+# Delete keyword
 
 @app.route('/delete_keyword/<string:keyword>', methods=['POST'])
 def delete_keyword(keyword):
@@ -122,12 +120,11 @@ def delete_keyword(keyword):
     if password != ADMIN_PASSWORD:
         flash('Incorrect password for deletion.')
         return redirect(url_for('index'))
-    conn = sqlite3.connect(DATABASE)
+    conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
     c.execute("DELETE FROM keywords WHERE keyword = ?", (keyword,))
     conn.commit()
     conn.close()
-    flash(f"Keyword '{keyword}' deleted.")
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
