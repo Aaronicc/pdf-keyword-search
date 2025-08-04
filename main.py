@@ -8,7 +8,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 # Set your admin password here
-ADMIN_PASSWORD = 'your_password_here'
+ADMIN_PASSWORD = 'Newpassword1_'
 
 def init_db():
     conn = sqlite3.connect('keywords.db')
