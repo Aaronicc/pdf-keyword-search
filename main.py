@@ -1,4 +1,3 @@
-# main.py
 import os
 import sqlite3
 import fitz  # PyMuPDF
@@ -12,7 +11,8 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 ADMIN_PASSWORD = 'Santiago01'
 
-# Initialize database on startup
+# ✅ Initialize database
+
 def initialize_db():
     conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
@@ -28,7 +28,8 @@ def initialize_db():
 
 initialize_db()
 
-# Fetch keywords from the database
+# ✅ Get keywords
+
 def get_keywords():
     conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
@@ -39,47 +40,51 @@ def get_keywords():
     conn.close()
     return pos_keywords, neg_keywords
 
-# Extract matching keywords from PDF
+# ✅ Highlight keywords and return compressed matches
+
 def extract_keyword_matches(pdf_path, pos_keywords, neg_keywords):
     doc = fitz.open(pdf_path)
     results = []
-    pos_counts = {kw.lower(): 0 for kw in pos_keywords}
-    neg_counts = {kw.lower(): 0 for kw in neg_keywords}
+    keyword_summary = {'positive': {}, 'negative': {}}
 
     for page_num, page in enumerate(doc, start=1):
-        text = page.get_text().lower()
-        found_positive = []
-        found_negative = []
+        lines = page.get_text("text" + "lines").split('\n')
+        matched_lines = []
 
-        for kw in pos_keywords:
-            if kw.lower() in text:
-                count = text.count(kw.lower())
-                pos_counts[kw.lower()] += count
-                found_positive.append(kw)
+        for line in lines:
+            lower_line = line.lower()
+            found_pos = [kw for kw in pos_keywords if kw.lower() in lower_line]
+            found_neg = [kw for kw in neg_keywords if kw.lower() in lower_line]
 
-        for kw in neg_keywords:
-            if kw.lower() in text:
-                count = text.count(kw.lower())
-                neg_counts[kw.lower()] += count
-                found_negative.append(kw)
+            if found_pos or found_neg:
+                # Highlight matched keywords in line
+                highlighted = line
+                for kw in found_pos + found_neg:
+                    highlighted = highlighted.replace(kw, f'<mark>{kw}</mark>')
 
-        if found_positive or found_negative:
-            snippet = text[:300].replace('\n', ' ') + ('...' if len(text) > 300 else '')
+                matched_lines.append(highlighted.strip())
+
+                for kw in found_pos:
+                    keyword_summary['positive'][kw] = keyword_summary['positive'].get(kw, 0) + 1
+                for kw in found_neg:
+                    keyword_summary['negative'][kw] = keyword_summary['negative'].get(kw, 0) + 1
+
+        if matched_lines:
             results.append({
                 'page': page_num,
-                'found_positive': found_positive,
-                'found_negative': found_negative,
-                'snippet': snippet
+                'snippet': ' '.join(matched_lines)
             })
 
-    return results, pos_counts, neg_counts
+    return results, keyword_summary
+
+# ✅ Home page
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
     pos_keywords, neg_keywords = get_keywords()
     results = []
-    pos_counts = {}
-    neg_counts = {}
+    keyword_summary = {'positive': {}, 'negative': {}}
+
     if request.method == 'POST':
         if 'pdf' not in request.files:
             flash('No file part')
@@ -92,8 +97,11 @@ def index():
             filename = secure_filename(file.filename)
             pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(pdf_path)
-            results, pos_counts, neg_counts = extract_keyword_matches(pdf_path, pos_keywords, neg_keywords)
-    return render_template('index.html', pos_keywords=pos_keywords, neg_keywords=neg_keywords, results=results, pos_counts=pos_counts, neg_counts=neg_counts)
+            results, keyword_summary = extract_keyword_matches(pdf_path, pos_keywords, neg_keywords)
+
+    return render_template('index.html', pos_keywords=pos_keywords, neg_keywords=neg_keywords, results=results, keyword_summary=keyword_summary)
+
+# ✅ Add keyword
 
 @app.route('/add_keyword', methods=['POST'])
 def add_keyword():
@@ -106,6 +114,8 @@ def add_keyword():
         conn.commit()
         conn.close()
     return redirect(url_for('index'))
+
+# ✅ Delete keyword
 
 @app.route('/delete_keyword/<string:keyword>', methods=['POST'])
 def delete_keyword(keyword):
