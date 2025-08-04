@@ -4,11 +4,25 @@
     <meta charset="UTF-8">
     <title>PDF Keyword Search</title>
     <style>
+        :root {
+            --bg-color: #f4f4f4;
+            --text-color: #333;
+            --box-bg: #fff;
+            --border-color: #ccc;
+        }
+
+        body.dark {
+            --bg-color: #121212;
+            --text-color: #f4f4f4;
+            --box-bg: #1e1e1e;
+            --border-color: #444;
+        }
+
         body {
             font-family: Arial, sans-serif;
             padding: 20px;
-            background-color: #f4f4f4;
-            color: #333;
+            background-color: var(--bg-color);
+            color: var(--text-color);
         }
 
         .section {
@@ -18,8 +32,8 @@
         .results {
             margin-top: 20px;
             padding: 10px;
-            border: 1px solid #ccc;
-            background-color: #fff;
+            border: 1px solid var(--border-color);
+            background-color: var(--box-bg);
         }
 
         .keywords {
@@ -37,6 +51,11 @@
             background: none;
             cursor: pointer;
             font-size: 16px;
+            transition: transform 0.3s ease;
+        }
+
+        .btn-icon.animate {
+            transform: scale(1.5);
         }
 
         .keyword-list {
@@ -45,8 +64,8 @@
             margin: 0;
             max-height: 250px;
             overflow-y: auto;
-            background-color: #fff;
-            border: 1px solid #ddd;
+            background-color: var(--box-bg);
+            border: 1px solid var(--border-color);
             padding: 10px;
         }
 
@@ -58,8 +77,15 @@
             padding: 2px 0;
         }
 
-        input[type="password"] {
-            font-family: inherit;
+        .pagination {
+            margin-top: 10px;
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .pagination button {
+            padding: 5px 10px;
         }
     </style>
     <script>
@@ -68,7 +94,7 @@
             keywordsDiv.style.display = keywordsDiv.style.display === "none" ? "block" : "none";
         }
 
-        function confirmDelete(keyword) {
+        function confirmDelete(keyword, button) {
             const password = prompt("Enter password to delete:");
             if (password) {
                 const form = document.getElementById("delete-" + keyword);
@@ -77,14 +103,47 @@
                 input.name = "password";
                 input.value = password;
                 form.appendChild(input);
-                form.submit();
+
+                button.classList.add("animate");
+                setTimeout(() => {
+                    button.classList.remove("animate");
+                    form.submit();
+                }, 500);
             }
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle("dark");
+        }
+
+        let currentPage = 1;
+        const perPage = 10;
+        function paginateList(type) {
+            const list = document.querySelectorAll(`.${type}-keywords li`);
+            const total = list.length;
+            const pages = Math.ceil(total / perPage);
+            list.forEach((item, i) => {
+                item.style.display = i >= (currentPage - 1) * perPage && i < currentPage * perPage ? "flex" : "none";
+            });
+            document.getElementById(`${type}-page-info`).innerText = `Page ${currentPage} of ${pages}`;
+            document.getElementById(`${type}-prev`).disabled = currentPage === 1;
+            document.getElementById(`${type}-next`).disabled = currentPage === pages;
+        }
+
+        function changePage(type, delta) {
+            currentPage += delta;
+            paginateList(type);
+        }
+
+        window.onload = function () {
+            paginateList("positive");
+            paginateList("negative");
         }
     </script>
 </head>
 <body>
-
     <h1>PDF Keyword Search</h1>
+    <button onclick="toggleDarkMode()">Toggle Light/Dark Mode</button>
 
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% if messages %}
@@ -105,28 +164,38 @@
         <button onclick="toggleKeywords()">Add / Manage Keywords</button>
         <div id="keywords-section" class="keywords">
             <h3>Positive Keywords</h3>
-            <ul class="keyword-list">
+            <ul class="keyword-list positive-keywords">
                 {% for kw in pos_keywords %}
                 <li>
                     {{ kw }}
                     <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
-                        <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}')">🗑️</button>
+                        <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}', this)">🗑️</button>
                     </form>
                 </li>
                 {% endfor %}
             </ul>
+            <div class="pagination">
+                <button id="positive-prev" onclick="changePage('positive', -1)">Prev</button>
+                <span id="positive-page-info"></span>
+                <button id="positive-next" onclick="changePage('positive', 1)">Next</button>
+            </div>
 
             <h3>Negative Keywords</h3>
-            <ul class="keyword-list">
+            <ul class="keyword-list negative-keywords">
                 {% for kw in neg_keywords %}
                 <li>
                     {{ kw }}
                     <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
-                        <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}')">🗑️</button>
+                        <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}', this)">🗑️</button>
                     </form>
                 </li>
                 {% endfor %}
             </ul>
+            <div class="pagination">
+                <button id="negative-prev" onclick="changePage('negative', -1)">Prev</button>
+                <span id="negative-page-info"></span>
+                <button id="negative-next" onclick="changePage('negative', 1)">Next</button>
+            </div>
 
             <form method="POST" action="{{ url_for('add_keyword') }}">
                 <input type="text" name="keyword" placeholder="Enter keyword" required>
