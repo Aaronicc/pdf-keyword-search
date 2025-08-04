@@ -1,91 +1,98 @@
 import os
 import sqlite3
 import fitz  # PyMuPDF
-from flask import Flask, request, render_template, redirect, url_for
+from flask import Flask, render_template, request, redirect
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-# === DB INIT ===
+# Ensure DB exists
 def init_db():
-    conn = sqlite3.connect("keywords.db")
+    conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS keywords (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            word TEXT NOT NULL,
-            type TEXT CHECK(type IN ('positive', 'negative')) NOT NULL
-        )
-    ''')
+    c.execute('''CREATE TABLE IF NOT EXISTS keywords (
+                    keyword TEXT,
+                    type TEXT
+                )''')
     conn.commit()
     conn.close()
 
 init_db()
 
-# === DB HELPERS ===
-def get_keywords_by_type(keyword_type):
-    conn = sqlite3.connect("keywords.db")
+def get_keywords():
+    conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
-    c.execute("SELECT word FROM keywords WHERE type = ?", (keyword_type,))
-    words = [row[0] for row in c.fetchall()]
+    c.execute("SELECT keyword, type FROM keywords")
+    data = c.fetchall()
     conn.close()
-    return words
+    pos_keywords = [kw for kw, t in data if t == "positive"]
+    neg_keywords = [kw for kw, t in data if t == "negative"]
+    return pos_keywords, neg_keywords
 
-def save_keyword(word, keyword_type):
-    conn = sqlite3.connect("keywords.db")
-    c = conn.cursor()
-    c.execute("INSERT INTO keywords (word, type) VALUES (?, ?)", (word, keyword_type))
-    conn.commit()
-    conn.close()
-
-# === PDF SEARCH ===
-def extract_matches_from_pdf(pdf_path, pos_keywords, neg_keywords):
+def extract_keyword_matches(pdf_path, pos_keywords, neg_keywords):
     results = []
-    with fitz.open(pdf_path) as doc:
-        for page_num, page in enumerate(doc, start=1):
-            text = page.get_text()
-            found_pos = [kw for kw in pos_keywords if kw.lower() in text.lower()]
-            found_neg = [kw for kw in neg_keywords if kw.lower() in text.lower()]
-            if found_pos or found_neg:
-                results.append({
-                    'page': page_num,
-                    'found_positive': found_pos,
-                    'found_negative': found_neg
-                })
+    doc = fitz.open(pdf_path)
+    for page_num in range(len(doc)):
+        page = doc[page_num]
+        text = page.get_text()
+        found_pos = [kw for kw in pos_keywords if kw.lower() in text.lower()]
+        found_neg = [kw for kw in neg_keywords if kw.lower() in text.lower()]
+        if found_pos or found_neg:
+            results.append({
+                "page": page_num + 1,
+                "found_positive": found_pos,
+                "found_negative": found_neg
+            })
     return results
 
-# === ROUTES ===
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    saved_pos_keywords = get_keywords_by_type("positive")
-    saved_neg_keywords = get_keywords_by_type("negative")
-    search_results = []
-
+    pos_keywords, neg_keywords = get_keywords()
+    results = []
     if request.method == 'POST':
-        if 'pdf' in request.files:
-            pdf = request.files['pdf']
-            if pdf.filename:
-                filename = secure_filename(pdf.filename)
-                pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-                pdf.save(pdf_path)
-
-                # Search using saved keywords
-                search_results = extract_matches_from_pdf(pdf_path, saved_pos_keywords, saved_neg_keywords)
-
-    return render_template('index.html',
-                           pos_keywords=saved_pos_keywords,
-                           neg_keywords=saved_neg_keywords,
-                           results=search_results)
+        file = request.files['pdf']
+        if file:
+            filename = secure_filename(file.filename)
+            path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(path)
+            results = extract_keyword_matches(path, pos_keywords, neg_keywords)
+    return render_template('index.html', pos_keywords=pos_keywords, neg_keywords=neg_keywords, results=results)
 
 @app.route('/add_keyword', methods=['POST'])
 def add_keyword():
-    word = request.form.get('keyword')
-    keyword_type = request.form.get('type')
-    if word and keyword_type in ['positive', 'negative']:
-        save_keyword(word.strip(), keyword_type)
-    return redirect(url_for('index'))
+    keyword = request.form['keyword'].strip().lower()
+    keyword_type = request.form['type']
+    conn = sqlite3.connect('keywords.db')
+    c = conn.cursor()
+    c.execute("INSERT INTO keywords (keyword, type) VALUES (?, ?)", (keyword, keyword_type))
+    conn.commit()
+    conn.close()
+    return redirect('/')
+
+@app.route('/delete_keyword', methods=['POST'])
+def delete_keyword():
+    keyword = request.form['keyword'].strip().lower()
+    keyword_type = request.form['type']
+    conn = sqlite3.connect('keywords.db')
+    c = conn.cursor()
+    c.execute("DELETE FROM keywords WHERE keyword = ? AND type = ?", (keyword, keyword_type))
+    conn.commit()
+    conn.close()
+    return redirect('/')
+
+@app.route('/edit_keyword', methods=['POST'])
+def edit_keyword():
+    original = request.form['original_keyword'].strip().lower()
+    new_keyword = request.form['new_keyword'].strip().lower()
+    keyword_type = request.form['type']
+    conn = sqlite3.connect('keywords.db')
+    c = conn.cursor()
+    c.execute("UPDATE keywords SET keyword = ? WHERE keyword = ? AND type = ?", (new_keyword, original, keyword_type))
+    conn.commit()
+    conn.close()
+    return redirect('/')
 
 if __name__ == '__main__':
     app.run(debug=True)
