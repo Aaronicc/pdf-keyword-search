@@ -115,6 +115,9 @@
         {% for result in results %}
             <div class="result-box">
                 <strong>Page {{ result.page }}</strong><br>
+                {% if result.snippet %}
+                    <div><em>BS:</em> {{ result.snippet }}</div>
+                {% endif %}
                 {% if result.found_positive %}
                     <span style="color: green;">✅ Positive Keywords Found:</span>
                     {{ result.found_positive | join(', ') }}<br>
