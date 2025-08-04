@@ -1,144 +1,97 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>PDF Keyword Search</title>
+    <title>PDF Keyword Finder</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-
-        h1 {
-            color: #333;
-        }
-
-        form {
-            margin-bottom: 20px;
-        }
-
-        .keyword-section {
-            display: none;
-            margin-bottom: 20px;
-        }
-
-        .results {
-            margin-top: 30px;
-        }
-
-        mark {
-            background-color: yellow;
-            padding: 2px 4px;
-            border-radius: 3px;
-        }
-
-        mark.neg {
-            background-color: lightcoral;
-        }
-
-        .keyword-list {
-            margin-bottom: 10px;
-        }
-
-        .keyword {
-            display: inline-block;
-            background: #f0f0f0;
-            border-radius: 5px;
-            padding: 5px 10px;
-            margin: 3px;
-        }
-
-        .keyword button {
-            margin-left: 8px;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 14px;
-        }
-
-        .password-input {
-            display: none;
-        }
+        body { font-family: Arial; margin: 20px; }
+        .keyword-box { display: none; margin-bottom: 20px; }
+        .snippet { background-color: #f4f4f4; padding: 10px; margin-bottom: 10px; }
+        .highlight { background-color: yellow; font-weight: bold; }
     </style>
+    <script>
+        function toggleKeywords() {
+            const box = document.getElementById('keyword-box');
+            box.style.display = box.style.display === 'none' ? 'block' : 'none';
+        }
+    </script>
 </head>
 <body>
-
-<h1>PDF Keyword Search</h1>
-
-<form method="post" enctype="multipart/form-data">
-    <label>Select PDF file:
-        <input type="file" name="pdf" required>
-    </label>
-    <button type="submit">Upload</button>
-</form>
-
-<button onclick="toggleKeywords()">Show/Hide Keywords</button>
-
-<div id="keywordSection" class="keyword-section">
-    <h3>Positive Keywords</h3>
-    <div class="keyword-list">
-        {% for kw in pos_keywords %}
-        <span class="keyword">
-            {{ kw }}
-            <form method="post" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;" onsubmit="return confirmDelete(this)">
-                <input type="password" name="password" class="password-input" placeholder="Password" required>
-                <button type="submit">🗑️</button>
-            </form>
-        </span>
-        {% endfor %}
-    </div>
-
-    <h3>Negative Keywords</h3>
-    <div class="keyword-list">
-        {% for kw in neg_keywords %}
-        <span class="keyword">
-            {{ kw }}
-            <form method="post" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;" onsubmit="return confirmDelete(this)">
-                <input type="password" name="password" class="password-input" placeholder="Password" required>
-                <button type="submit">🗑️</button>
-            </form>
-        </span>
-        {% endfor %}
-    </div>
-
-    <h3>Add New Keyword</h3>
-    <form method="post" action="/add_keyword">
-        <input type="text" name="keyword" placeholder="Keyword" required>
-        <select name="type">
-            <option value="positive">Positive</option>
-            <option value="negative">Negative</option>
-        </select>
-        <button type="submit">Add</button>
+    <h1>PDF Keyword Finder</h1>
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="pdf" accept="application/pdf" required>
+        <button type="submit">Upload PDF</button>
     </form>
-</div>
 
-{% if results %}
-<div class="results">
-    <h2>Search Results</h2>
-    {% for r in results %}
-    <div class="result">
-        <h4>Page {{ r.page }}</h4>
-        <p><strong>Found Positive:</strong> {{ r.found_positive | join(', ') }}</p>
-        <p><strong>Found Negative:</strong> {{ r.found_negative | join(', ') }}</p>
-        <p>{{ r.snippet | safe }}</p>
-        <hr>
+    <button onclick="toggleKeywords()">ADD Keywords</button>
+    <div id="keyword-box" class="keyword-box">
+        <form method="POST" action="/add_keyword">
+            <input type="text" name="keyword" placeholder="Keyword" required>
+            <select name="type">
+                <option value="positive">Positive</option>
+                <option value="negative">Negative</option>
+            </select>
+            <button type="submit">Add</button>
+        </form>
+
+        <h3>Positive Keywords</h3>
+        <ul>
+            {% for kw in pos_keywords %}
+            <li>{{ kw }}
+                <form action="/delete_keyword/{{ kw }}" method="POST" style="display:inline">
+                    <input type="password" name="password" placeholder="Password" required>
+                    <button type="submit">🗑️</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
+
+        <h3>Negative Keywords</h3>
+        <ul>
+            {% for kw in neg_keywords %}
+            <li>{{ kw }}
+                <form action="/delete_keyword/{{ kw }}" method="POST" style="display:inline">
+                    <input type="password" name="password" placeholder="Password" required>
+                    <button type="submit">🗑️</button>
+                </form>
+            </li>
+            {% endfor %}
+        </ul>
     </div>
-    {% endfor %}
-</div>
-{% endif %}
 
-<script>
-    function toggleKeywords() {
-        const section = document.getElementById('keywordSection');
-        section.style.display = section.style.display === 'none' ? 'block' : 'none';
-    }
+    {% if results %}
+        <h2>Keyword Summary</h2>
+        <p><strong>Positive:</strong> 
+            {% for k, v in pos_counts.items() if v > 0 %}
+                {{ k }}({{ v }}){% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </p>
+        <p><strong>Negative:</strong> 
+            {% for k, v in neg_counts.items() if v > 0 %}
+                {{ k }}({{ v }}){% if not loop.last %}, {% endif %}
+            {% endfor %}
+        </p>
 
-    function confirmDelete(form) {
-        const passwordInput = form.querySelector('.password-input');
-        passwordInput.style.display = 'inline-block';
-        return confirm('Are you sure you want to delete this keyword?');
-    }
-</script>
+        <h2>Results</h2>
+        {% for result in results %}
+            <div class="snippet">
+                <strong>Page {{ result.page }}</strong><br>
+                <strong>Positive:</strong> {{ result.found_positive | join(', ') }}<br>
+                <strong>Negative:</strong> {{ result.found_negative | join(', ') }}<br>
+                <p>{{ result.snippet }}</p>
+            </div>
+        {% endfor %}
+    {% endif %}
 
+    {% with messages = get_flashed_messages() %}
+      {% if messages %}
+        <ul>
+        {% for message in messages %}
+          <li>{{ message }}</li>
+        {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
 </body>
 </html>
