@@ -1,9 +1,9 @@
 import sqlite3
 
-conn = sqlite3.connect('keywords.db')  # Make sure the path matches your app config
+conn = sqlite3.connect('keywords.db')  # Make sure this path matches your app
 c = conn.cursor()
 
-# Create table
+# Create the keywords table
 c.execute('''
 CREATE TABLE IF NOT EXISTS keywords (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
