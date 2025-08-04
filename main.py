@@ -1,9 +1,9 @@
+# main.py
 import os
 import sqlite3
 import fitz  # PyMuPDF
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
-import re
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads'
@@ -12,7 +12,7 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
 ADMIN_PASSWORD = 'Santiago01'
 
-# ✅ Initialize database on startup
+# Initialize database on startup
 def initialize_db():
     conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
@@ -28,7 +28,7 @@ def initialize_db():
 
 initialize_db()
 
-# ✅ Fetch keywords from the database
+# Fetch keywords from the database
 def get_keywords():
     conn = sqlite3.connect('keywords.db')
     c = conn.cursor()
@@ -39,47 +39,47 @@ def get_keywords():
     conn.close()
     return pos_keywords, neg_keywords
 
-# ✅ Extract matching keywords from PDF (fixed logic)
+# Extract matching keywords from PDF
 def extract_keyword_matches(pdf_path, pos_keywords, neg_keywords):
     doc = fitz.open(pdf_path)
     results = []
+    pos_counts = {kw.lower(): 0 for kw in pos_keywords}
+    neg_counts = {kw.lower(): 0 for kw in neg_keywords}
 
     for page_num, page in enumerate(doc, start=1):
-        text = page.get_text()
-        text_lower = text.lower()
+        text = page.get_text().lower()
         found_positive = []
         found_negative = []
 
         for kw in pos_keywords:
-            if kw.lower() in text_lower:
+            if kw.lower() in text:
+                count = text.count(kw.lower())
+                pos_counts[kw.lower()] += count
                 found_positive.append(kw)
 
         for kw in neg_keywords:
-            if kw.lower() in text_lower:
+            if kw.lower() in text:
+                count = text.count(kw.lower())
+                neg_counts[kw.lower()] += count
                 found_negative.append(kw)
 
         if found_positive or found_negative:
-            snippet = text[:300].replace('\n', ' ')
-            # Highlight matched keywords in snippet
-            for kw in found_positive:
-                snippet = re.sub(f"(?i)({re.escape(kw)})", r"<mark>\1</mark>", snippet)
-            for kw in found_negative:
-                snippet = re.sub(f"(?i)({re.escape(kw)})", r"<mark class='neg'>\1</mark>", snippet)
-
+            snippet = text[:300].replace('\n', ' ') + ('...' if len(text) > 300 else '')
             results.append({
                 'page': page_num,
                 'found_positive': found_positive,
                 'found_negative': found_negative,
-                'snippet': snippet + ('...' if len(text) > 300 else '')
+                'snippet': snippet
             })
 
-    return results
+    return results, pos_counts, neg_counts
 
-# ✅ Home page and PDF upload handler
 @app.route('/', methods=['GET', 'POST'])
 def index():
     pos_keywords, neg_keywords = get_keywords()
     results = []
+    pos_counts = {}
+    neg_counts = {}
     if request.method == 'POST':
         if 'pdf' not in request.files:
             flash('No file part')
@@ -92,10 +92,9 @@ def index():
             filename = secure_filename(file.filename)
             pdf_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
             file.save(pdf_path)
-            results = extract_keyword_matches(pdf_path, pos_keywords, neg_keywords)
-    return render_template('index.html', pos_keywords=pos_keywords, neg_keywords=neg_keywords, results=results)
+            results, pos_counts, neg_counts = extract_keyword_matches(pdf_path, pos_keywords, neg_keywords)
+    return render_template('index.html', pos_keywords=pos_keywords, neg_keywords=neg_keywords, results=results, pos_counts=pos_counts, neg_counts=neg_counts)
 
-# ✅ Add new keyword
 @app.route('/add_keyword', methods=['POST'])
 def add_keyword():
     keyword = request.form['keyword'].strip()
@@ -108,7 +107,6 @@ def add_keyword():
         conn.close()
     return redirect(url_for('index'))
 
-# ✅ Delete keyword (with password protection)
 @app.route('/delete_keyword/<string:keyword>', methods=['POST'])
 def delete_keyword(keyword):
     password = request.form.get('password')
