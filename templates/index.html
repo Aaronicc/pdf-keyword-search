@@ -23,21 +23,37 @@
             margin-top: 10px;
         }
         .keyword-list {
-            display: none;
             margin: 10px 0;
             padding-left: 20px;
         }
-        button {
-            margin-top: 5px;
+        .keyword-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 5px 0;
         }
-        .delete-form {
-            display: inline;
+        button {
+            margin-left: 5px;
         }
     </style>
     <script>
         function toggleKeywords(id) {
-            var elem = document.getElementById(id);
+            const elem = document.getElementById(id);
             elem.style.display = (elem.style.display === 'none') ? 'block' : 'none';
+        }
+
+        function deleteKeyword(id) {
+            const password = prompt("Enter admin password to delete:");
+            if (password !== null) {
+                fetch(`/delete_keyword/${id}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: `password=${encodeURIComponent(password)}`
+                })
+                .then(res => window.location.reload())
+                .catch(err => alert("Error deleting keyword."));
+            }
         }
     </script>
 </head>
@@ -57,38 +73,36 @@
 
     <!-- Show/Hide Keywords -->
     <div class="toggle-section">
-        <button onclick="toggleKeywords('positive-kw')">Show/Hide Positive Keywords</button>
+        <button onclick="toggleKeywords('positive-kw')">Toggle Positive Keywords</button>
         <div id="positive-kw" class="keyword-list">
-            <ul>
-                {% for word in pos_keywords %}
-                <li>
-                    {{ word }}
-                    <form action="/delete_keyword" method="post" class="delete-form" onsubmit="return confirm('Are you sure you want to delete this keyword?');">
-                        <input type="hidden" name="keyword" value="{{ word }}">
-                        <input type="hidden" name="type" value="positive">
-                        <input type="password" name="password" placeholder="Password" required>
-                        <button type="submit">🗑️</button>
-                    </form>
-                </li>
-                {% endfor %}
-            </ul>
+            {% for word in pos_keywords %}
+                <div class="keyword-item">
+                    <span>{{ word[1] }}</span>
+                    <div>
+                        <form action="/edit_keyword/{{ word[0] }}" method="post" style="display:inline;">
+                            <input type="text" name="new_keyword" placeholder="Edit" required>
+                            <button type="submit">✏️</button>
+                        </form>
+                        <button onclick="deleteKeyword({{ word[0] }})">🗑️</button>
+                    </div>
+                </div>
+            {% endfor %}
         </div>
 
-        <button onclick="toggleKeywords('negative-kw')">Show/Hide Negative Keywords</button>
+        <button onclick="toggleKeywords('negative-kw')">Toggle Negative Keywords</button>
         <div id="negative-kw" class="keyword-list">
-            <ul>
-                {% for word in neg_keywords %}
-                <li>
-                    {{ word }}
-                    <form action="/delete_keyword" method="post" class="delete-form" onsubmit="return confirm('Are you sure you want to delete this keyword?');">
-                        <input type="hidden" name="keyword" value="{{ word }}">
-                        <input type="hidden" name="type" value="negative">
-                        <input type="password" name="password" placeholder="Password" required>
-                        <button type="submit">🗑️</button>
-                    </form>
-                </li>
-                {% endfor %}
-            </ul>
+            {% for word in neg_keywords %}
+                <div class="keyword-item">
+                    <span>{{ word[1] }}</span>
+                    <div>
+                        <form action="/edit_keyword/{{ word[0] }}" method="post" style="display:inline;">
+                            <input type="text" name="new_keyword" placeholder="Edit" required>
+                            <button type="submit">✏️</button>
+                        </form>
+                        <button onclick="deleteKeyword({{ word[0] }})">🗑️</button>
+                    </div>
+                </div>
+            {% endfor %}
         </div>
     </div>
 
@@ -113,7 +127,10 @@
                     <span style="color: red;">❌ Negative Keywords Found:</span>
                     {{ result.found_negative | join(', ') }}<br>
                 {% endif %}
-                <strong>BS</strong><br>
+                {% if result.snippet %}
+                    <em>📌 Snippet:</em><br>
+                    <blockquote>{{ result.snippet }}</blockquote>
+                {% endif %}
             </div>
         {% endfor %}
     {% endif %}
