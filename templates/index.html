@@ -4,119 +4,118 @@
     <meta charset="UTF-8">
     <title>PDF Keyword Search</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .container { max-width: 900px; margin: auto; }
-        .results { margin-top: 20px; }
-        .snippet { background-color: #f9f9f9; padding: 10px; border-radius: 6px; margin-bottom: 10px; }
-        mark { background-color: yellow; font-weight: bold; }
-        .keyword-toggle { margin-bottom: 10px; cursor: pointer; background-color: #eee; padding: 10px; border: 1px solid #ccc; }
-        .hidden { display: none; }
-        .keyword-table { width: 100%; margin-bottom: 20px; }
-        .keyword-table td { padding: 4px 6px; }
-        .delete-form input[type="password"] { width: 80px; }
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .section { margin-bottom: 20px; }
+        .results { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+        .keywords { display: none; margin-top: 10px; }
+        .highlight { background-color: yellow; font-weight: bold; }
+        .btn-icon { border: none; background: none; cursor: pointer; }
     </style>
     <script>
         function toggleKeywords() {
-            var section = document.getElementById('keyword-section');
-            section.classList.toggle('hidden');
+            const keywordsDiv = document.getElementById("keywords-section");
+            keywordsDiv.style.display = keywordsDiv.style.display === "none" ? "block" : "none";
+        }
+        function confirmDelete(keyword) {
+            const password = prompt("Enter password to delete:");
+            if (password) {
+                const form = document.getElementById("delete-" + keyword);
+                const input = document.createElement("input");
+                input.type = "hidden";
+                input.name = "password";
+                input.value = password;
+                form.appendChild(input);
+                form.submit();
+            }
         }
     </script>
 </head>
 <body>
-    <div class="container">
-        <h1>PDF Keyword Search</h1>
-        <form method="POST" enctype="multipart/form-data">
-            <input type="file" name="pdf" accept=".pdf" required>
-            <button type="submit">Upload & Search</button>
-        </form>
 
-        <div class="keyword-toggle" onclick="toggleKeywords()">➕ Show/Hide Keywords</div>
-        <div id="keyword-section" class="hidden">
-            <h3>Add Keyword</h3>
-            <form action="/add_keyword" method="post">
+    <h1>PDF Keyword Search</h1>
+
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="pdf" required>
+        <button type="submit">Upload and Search</button>
+    </form>
+
+    <div class="section">
+        <button onclick="toggleKeywords()">Add / Manage Keywords</button>
+        <div id="keywords-section" class="keywords">
+            <h3>Positive Keywords</h3>
+            <ul>
+                {% for kw in pos_keywords %}
+                <li>
+                    {{ kw }}
+                    <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
+                        <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}')">🗑️</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            <h3>Negative Keywords</h3>
+            <ul>
+                {% for kw in neg_keywords %}
+                <li>
+                    {{ kw }}
+                    <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
+                        <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}')">🗑️</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            <form method="POST" action="{{ url_for('add_keyword') }}">
                 <input type="text" name="keyword" placeholder="Enter keyword" required>
                 <select name="type">
                     <option value="positive">Positive</option>
                     <option value="negative">Negative</option>
                 </select>
-                <button type="submit">Add</button>
+                <button type="submit">Add Keyword</button>
             </form>
-
-            <h3>Saved Keywords</h3>
-            <table class="keyword-table" border="1">
-                <tr>
-                    <th>Keyword</th>
-                    <th>Type</th>
-                    <th>Actions</th>
-                </tr>
-                {% for kw in pos_keywords %}
-                <tr>
-                    <td>{{ kw }}</td>
-                    <td>Positive</td>
-                    <td>
-                        <form action="/delete_keyword/{{ kw }}" method="post" class="delete-form">
-                            <input type="password" name="password" placeholder="Password" required>
-                            <button type="submit">🗑️</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-                {% for kw in neg_keywords %}
-                <tr>
-                    <td>{{ kw }}</td>
-                    <td>Negative</td>
-                    <td>
-                        <form action="/delete_keyword/{{ kw }}" method="post" class="delete-form">
-                            <input type="password" name="password" placeholder="Password" required>
-                            <button type="submit">🗑️</button>
-                        </form>
-                    </td>
-                </tr>
-                {% endfor %}
-            </table>
         </div>
-
-        {% if results %}
-        <div class="results">
-            <h2>Search Results</h2>
-
-            {% for result in results %}
-            <div class="snippet">
-                <strong>Page {{ result.page }}</strong><br>
-                <strong>Positive:</strong> 
-                {% if result.found_positive %}
-                    {{ result.found_positive | join(', ') }}
-                {% else %} None {% endif %}<br>
-                <strong>Negative:</strong> 
-                {% if result.found_negative %}
-                    {{ result.found_negative | join(', ') }}
-                {% else %} None {% endif %}<br><br>
-                {{ result.snippet | safe }}
-            </div>
-            {% endfor %}
-
-            <h3>Keyword Summary</h3>
-            <p><strong>Positive:</strong> 
-            {% if summary.positive %}
-                {% for k, v in summary.positive.items() %}{{ k }}({{ v }}){% if not loop.last %}, {% endif %}{% endfor %}
-            {% else %} None {% endif %}</p>
-
-            <p><strong>Negative:</strong> 
-            {% if summary.negative %}
-                {% for k, v in summary.negative.items() %}{{ k }}({{ v }}){% if not loop.last %}, {% endif %}{% endfor %}
-            {% else %} None {% endif %}</p>
-        </div>
-        {% endif %}
-
-        {% with messages = get_flashed_messages() %}
-          {% if messages %}
-            <ul style="color: red;">
-              {% for message in messages %}
-                <li>{{ message }}</li>
-              {% endfor %}
-            </ul>
-          {% endif %}
-        {% endwith %}
     </div>
+
+    {% if summary_count %}
+    <div class="section results">
+        <h3>Keyword Summary</h3>
+        <p><strong>Positive:</strong>
+        {% for kw, count in summary_count['positive'].items() %}
+            {{ kw }} ({{ count }}){% if not loop.last %}, {% endif %}
+        {% endfor %}
+        </p>
+        <p><strong>Negative:</strong>
+        {% for kw, count in summary_count['negative'].items() %}
+            {{ kw }} ({{ count }}){% if not loop.last %}, {% endif %}
+        {% endfor %}
+        </p>
+    </div>
+    {% endif %}
+
+    {% if results %}
+    <div class="section results">
+        <h3>Match Results</h3>
+        {% for result in results %}
+        <div>
+            <strong>Page {{ result.page }}</strong><br>
+            Positive: {{ result.found_positive | join(', ') or 'None' }}<br>
+            Negative: {{ result.found_negative | join(', ') or 'None' }}<br>
+            <ul>
+                {% for line in result.lines %}
+                <li>
+                    {% for word in line.split() %}
+                        {% if word.lower() in result.found_positive|map('lower') or word.lower() in result.found_negative|map('lower') %}
+                            <span class="highlight">{{ word }}</span>
+                        {% else %}
+                            {{ word }}
+                        {% endif %}
+                    {% endfor %}
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
 </body>
 </html>
