@@ -11,143 +11,122 @@
         .highlight { background-color: yellow; font-weight: bold; }
         .btn-icon { border: none; background: none; cursor: pointer; }
     </style>
+    <script>
+        function toggleKeywords() {
+            const keywordsDiv = document.getElementById("keywords-section");
+            keywordsDiv.style.display = keywordsDiv.style.display === "none" ? "block" : "none";
+        }
+
+        function confirmDelete(keyword) {
+            const password = prompt("Enter password to delete:");
+            if (password) {
+                const form = document.getElementById("delete-" + keyword);
+                const input = document.createElement("input");
+                input.type = "hidden";
+                input.name = "password";
+                input.value = password;
+                form.appendChild(input);
+                form.submit();
+            }
+        }
+    </script>
 </head>
 <body>
 
-<h1>PDF Keyword Search</h1>
+    <h1>PDF Keyword Search</h1>
 
-<form method="POST" enctype="multipart/form-data">
-    <input type="file" name="pdf" required>
-    <button type="submit">Upload and Search</button>
-</form>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        <ul style="color: red;">
+          {% for category, message in messages %}
+            <li>{{ message }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% endwith %}
 
-<div class="section">
-    <button onclick="toggleKeywords()">Add / Manage Keywords</button>
-    <div id="keywords-section" class="keywords">
-        <h3>Positive Keywords</h3>
-        <ul>
-            {% for kw in pos_keywords %}
-            <li>
-                {{ kw }}
-                <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
-                    <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}')">🗑️</button>
-                </form>
-            </li>
-            {% endfor %}
-        </ul>
-        <h3>Negative Keywords</h3>
-        <ul>
-            {% for kw in neg_keywords %}
-            <li>
-                {{ kw }}
-                <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
-                    <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}')">🗑️</button>
-                </form>
-            </li>
-            {% endfor %}
-        </ul>
-        <form method="POST" action="{{ url_for('add_keyword') }}">
-            <input type="text" name="keyword" placeholder="Enter keyword" required>
-            <select name="type">
-                <option value="positive">Positive</option>
-                <option value="negative">Negative</option>
-            </select>
-            <input type="password" name="password" placeholder="Enter password" required>
-            <button type="submit">Add Keyword</button>
-        </form>
-        {% if error %}
-        <p style="color:red;">{{ error }}</p>
-        {% endif %}
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="pdf" required>
+        <button type="submit">Upload and Search</button>
+    </form>
+
+    <div class="section">
+        <button onclick="toggleKeywords()">Add / Manage Keywords</button>
+        <div id="keywords-section" class="keywords">
+            <h3>Positive Keywords</h3>
+            <ul>
+                {% for kw in pos_keywords %}
+                <li>
+                    {{ kw }}
+                    <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
+                        <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}')">🗑️</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            <h3>Negative Keywords</h3>
+            <ul>
+                {% for kw in neg_keywords %}
+                <li>
+                    {{ kw }}
+                    <form id="delete-{{ kw }}" method="POST" action="{{ url_for('delete_keyword', keyword=kw) }}" style="display:inline;">
+                        <button type="button" class="btn-icon" onclick="confirmDelete('{{ kw }}')">🗑️</button>
+                    </form>
+                </li>
+                {% endfor %}
+            </ul>
+            <form method="POST" action="{{ url_for('add_keyword') }}">
+                <input type="text" name="keyword" placeholder="Enter keyword" required>
+                <select name="type">
+                    <option value="positive">Positive</option>
+                    <option value="negative">Negative</option>
+                </select>
+                <button type="submit">Add Keyword</button>
+            </form>
+        </div>
     </div>
-</div>
 
-{% if summary_count %}
-<div class="section results">
-    <h3>Keyword Summary</h3>
-    <p><strong>Positive:</strong>
+    {% if summary_count %}
+    <div class="section results">
+        <h3>Keyword Summary</h3>
+        <p><strong>Positive:</strong>
         {% for kw, count in summary_count['positive'].items() %}
             {{ kw }} ({{ count }}){% if not loop.last %}, {% endif %}
         {% endfor %}
-    </p>
-    <p><strong>Negative:</strong>
+        </p>
+        <p><strong>Negative:</strong>
         {% for kw, count in summary_count['negative'].items() %}
             {{ kw }} ({{ count }}){% if not loop.last %}, {% endif %}
         {% endfor %}
-    </p>
-</div>
-{% endif %}
+        </p>
+    </div>
+    {% endif %}
 
-{% if results %}
-<div class="section results">
-    <h3>Match Results</h3>
-    {% for result in results %}
-    <div>
-        <strong>Page {{ result.page }}</strong><br>
-        Positive: {{ result.found_positive | join(', ') or 'None' }}<br>
-        Negative: {{ result.found_negative | join(', ') or 'None' }}<br>
-        <ul>
-            {% for line in result.lines %}
-            <li>
-                {% for word in line.split() %}
-                    {% if word.lower() in result.found_positive|map('lower') or word.lower() in result.found_negative|map('lower') %}
-                        <span class="highlight">{{ word }}</span>
-                    {% else %}
-                        {{ word }}
-                    {% endif %}
+    {% if results %}
+    <div class="section results">
+        <h3>Match Results</h3>
+        {% for result in results %}
+        <div>
+            <strong>Page {{ result.page }}</strong><br>
+            Positive: {{ result.found_positive | join(', ') or 'None' }}<br>
+            Negative: {{ result.found_negative | join(', ') or 'None' }}<br>
+            <ul>
+                {% for line in result.lines %}
+                <li>
+                    {% for word in line.split() %}
+                        {% if word.lower() in result.found_positive|map('lower') or word.lower() in result.found_negative|map('lower') %}
+                            <span class="highlight">{{ word }}</span>
+                        {% else %}
+                            {{ word }}
+                        {% endif %}
+                    {% endfor %}
+                </li>
                 {% endfor %}
-            </li>
-            {% endfor %}
-        </ul>
+            </ul>
+        </div>
+        {% endfor %}
     </div>
-    {% endfor %}
-</div>
-{% endif %}
-
-<!-- Password Modal -->
-<div id="passwordModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%;
-     background:rgba(0,0,0,0.5); justify-content:center; align-items:center;">
-  <div style="background:white; padding:20px; border-radius:10px; width:300px;">
-    <h3>Enter Password</h3>
-    <input type="password" id="modalPassword" style="width:100%; padding:8px;" />
-    <div style="margin-top:10px; text-align:right;">
-      <button onclick="closeModal()">Cancel</button>
-      <button onclick="submitDelete()">Delete</button>
-    </div>
-  </div>
-</div>
-
-<script>
-    let deleteKeywordTarget = null;
-
-    function toggleKeywords() {
-        const keywordsDiv = document.getElementById("keywords-section");
-        keywordsDiv.style.display = keywordsDiv.style.display === "none" ? "block" : "none";
-    }
-
-    function confirmDelete(keyword) {
-        deleteKeywordTarget = document.getElementById("delete-" + keyword);
-        document.getElementById("passwordModal").style.display = "flex";
-        document.getElementById("modalPassword").value = "";
-        document.getElementById("modalPassword").focus();
-    }
-
-    function closeModal() {
-        document.getElementById("passwordModal").style.display = "none";
-    }
-
-    function submitDelete() {
-        const password = document.getElementById("modalPassword").value;
-        if (password && deleteKeywordTarget) {
-            const input = document.createElement("input");
-            input.type = "hidden";
-            input.name = "password";
-            input.value = password;
-            deleteKeywordTarget.appendChild(input);
-            deleteKeywordTarget.submit();
-        }
-        closeModal();
-    }
-</script>
+    {% endif %}
 
 </body>
 </html>
