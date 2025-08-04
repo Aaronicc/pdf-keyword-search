@@ -37,13 +37,26 @@ def extract_keyword_matches(pdf_path, pos_keywords, neg_keywords):
     for page_num in range(len(doc)):
         page = doc[page_num]
         text = page.get_text()
+
         found_pos = [kw for kw in pos_keywords if kw.lower() in text.lower()]
         found_neg = [kw for kw in neg_keywords if kw.lower() in text.lower()]
+
+        snippet = ""
         if found_pos or found_neg:
+            keywords_combined = found_pos + found_neg
+            for kw in keywords_combined:
+                idx = text.lower().find(kw.lower())
+                if idx != -1:
+                    start = max(0, idx - 50)
+                    end = min(len(text), idx + len(kw) + 50)
+                    snippet = text[start:end].replace('\n', ' ')
+                    break
+
             results.append({
                 "page": page_num + 1,
                 "found_positive": found_pos,
-                "found_negative": found_neg
+                "found_negative": found_neg,
+                "snippet": snippet
             })
     return results
 
