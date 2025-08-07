@@ -1,5 +1,5 @@
 import os
-import sqlite3
+import psycopg2
 from flask import Flask, render_template, request, redirect, url_for, flash
 from werkzeug.utils import secure_filename
 import fitz  # PyMuPDF
@@ -9,43 +9,45 @@ app.secret_key = 'your_secret_key'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 
-DB_FILE = 'keywords.db'
+DATABASE_URL = os.environ.get("DATABASE_URL")  # Provided by Render
 
 # Initialize DB if not exists
 def init_db():
-    with sqlite3.connect(DB_FILE) as conn:
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS keywords (
-                        keyword TEXT PRIMARY KEY,
-                        type TEXT CHECK(type IN ('positive', 'negative'))
-                    )''')
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS keywords (
+                    keyword TEXT PRIMARY KEY,
+                    type TEXT CHECK(type IN ('positive', 'negative'))
+                )
+            ''')
         conn.commit()
 
 init_db()
 
 def get_keywords():
-    with sqlite3.connect(DB_FILE) as conn:
-        c = conn.cursor()
-        c.execute("SELECT keyword FROM keywords WHERE type='positive'")
-        pos = [row[0] for row in c.fetchall()]
-        c.execute("SELECT keyword FROM keywords WHERE type='negative'")
-        neg = [row[0] for row in c.fetchall()]
-        return pos, neg
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("SELECT keyword FROM keywords WHERE type='positive'")
+            pos = [row[0] for row in c.fetchall()]
+            c.execute("SELECT keyword FROM keywords WHERE type='negative'")
+            neg = [row[0] for row in c.fetchall()]
+            return pos, neg
 
 def add_keyword_to_db(keyword, ktype):
     try:
-        with sqlite3.connect(DB_FILE) as conn:
-            c = conn.cursor()
-            c.execute("INSERT INTO keywords (keyword, type) VALUES (?, ?)", (keyword, ktype))
+        with psycopg2.connect(DATABASE_URL) as conn:
+            with conn.cursor() as c:
+                c.execute("INSERT INTO keywords (keyword, type) VALUES (%s, %s)", (keyword, ktype))
             conn.commit()
         return True
-    except sqlite3.IntegrityError:
+    except psycopg2.IntegrityError:
         return False
 
 def delete_keyword_from_db(keyword):
-    with sqlite3.connect(DB_FILE) as conn:
-        c = conn.cursor()
-        c.execute("DELETE FROM keywords WHERE keyword=?", (keyword,))
+    with psycopg2.connect(DATABASE_URL) as conn:
+        with conn.cursor() as c:
+            c.execute("DELETE FROM keywords WHERE keyword=%s", (keyword,))
         conn.commit()
 
 def extract_keyword_matches(pdf_path, pos_keywords, neg_keywords):
