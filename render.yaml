@@ -1,16 +1,16 @@
 services:
   - type: web
-    name: pdf-image-ocr-search
-    env: docker
+    name: pdf-image-keyword-search
+    env: python
     plan: free
-    autoDeploy: true
-    region: oregon
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn main:app"
     envVars:
       - key: DATABASE_URL
-        # Set this in Render dashboard to your Postgres URL.
-        # Example: postgres://USER:PASSWORD@HOST:5432/DBNAME
-        sync: false
-      - key: FLASK_ENV
-        value: production
-      - key: DELETE_PASSWORD
-        value: secret123
+        fromDatabase:
+          name: pdfimg-keywords-db
+          property: connectionString
+
+databases:
+  - name: pdfimg-keywords-db
+    plan: free
