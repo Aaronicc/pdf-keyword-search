@@ -2,7 +2,17 @@ services:
   - type: web
     name: pdf-image-keyword-search
     env: python
+    plan: free
     buildCommand: |
       apt-get update && apt-get install -y tesseract-ocr
       pip install -r requirements.txt
     startCommand: gunicorn main:app
+    envVars:
+      - key: SECRET_KEY
+        value: change-me
+      - key: KEYWORD_ADMIN_PASSWORD
+        value: 1234
+      # Render will usually inject DATABASE_URL automatically when you add a Postgres instance
+      # If you have your own, set it here:
+      # - key: DATABASE_URL
+      #   value: postgres://USER:PASSWORD@HOST:PORT/DBNAME
