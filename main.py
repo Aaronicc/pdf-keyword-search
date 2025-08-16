@@ -5,6 +5,8 @@ import pytesseract
 from pdf2image import convert_from_path
 from PIL import Image
 import os
+basedir = os.path.abspath(os.path.dirname(__file__))
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'keywords.db')
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///keywords.db'
