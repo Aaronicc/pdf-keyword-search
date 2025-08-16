@@ -3,73 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <title>PDF & Image Keyword Search</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { color: #333; }
-        .keyword-list { margin-top: 20px; }
-        .keyword-item { display: flex; align-items: center; margin-bottom: 5px; }
-        .keyword-item span { flex: 1; }
-        button { margin-left: 5px; }
-        .results { margin-top: 20px; }
-        .result { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
-        .result strong { color: #007BFF; }
-    </style>
-    <script>
-        function deleteKeyword(id) {
-            const password = prompt("Enter password to delete keyword:");
-            if (!password || password !== 'admin123') return;  // Change password as needed
-
-            fetch(`/delete_keyword/${id}`, { method: 'POST' })
-                .then(() => location.reload());
-        }
-
-        function editKeyword(id) {
-            const newWord = prompt("Enter new keyword:");
-            const password = prompt("Enter password to edit keyword:");
-            if (!password || password !== 'admin123') return;
-
-            fetch(`/edit_keyword/${id}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ word: newWord })
-            }).then(() => location.reload());
-        }
-    </script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
 </head>
-<body>
-    <h1>PDF & Image Keyword Search</h1>
+<body class="bg-light">
+<div class="container mt-5">
+    <h1 class="mb-4">PDF & Image Keyword Search</h1>
 
-    <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="pdf" required>
-        <button type="submit">Search</button>
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+
+    <!-- File upload -->
+    <form method="POST" enctype="multipart/form-data" class="mb-4">
+        <div class="mb-3">
+            <input type="file" name="file" class="form-control" accept=".pdf,.png,.jpg,.jpeg" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Search Keywords</button>
     </form>
 
-    <div class="keyword-list">
-        <h2>Keywords</h2>
-        <form method="POST" action="/add_keyword">
-            <input type="text" name="keyword" required>
-            <button type="submit">Add Keyword</button>
-        </form>
-        {% for kw in keywords %}
-            <div class="keyword-item">
-                <span>{{ kw.word }}</span>
-                <button onclick="editKeyword({{ kw.id }})">Edit</button>
-                <button onclick="deleteKeyword({{ kw.id }})">Delete</button>
-            </div>
-        {% endfor %}
-    </div>
+    <!-- Add keyword -->
+    <form method="POST" action="{{ url_for('add_keyword') }}" class="mb-4">
+        <div class="input-group">
+            <input type="text" name="keyword" class="form-control" placeholder="Add new keyword" required>
+            <button class="btn btn-success" type="submit">Add</button>
+        </div>
+    </form>
 
-    <div class="results">
-        <h2>Search Results</h2>
-        {% for r in results %}
-            <div class="result">
-                <strong>{{ r.keyword }}</strong> found on <em>{{ r.page }}</em>
-                <p>{{ r.snippet }}...</p>
-            </div>
+    <!-- Keyword list -->
+    <h4>Saved Keywords</h4>
+    <ul class="list-group mb-4">
+        {% for kw in keywords %}
+        <li class="list-group-item d-flex justify-content-between align-items-center">
+            {{ kw.word }}
+            <form method="POST" action="{{ url_for('delete_keyword', kw_id=kw.id) }}">
+                <button class="btn btn-danger btn-sm">Delete</button>
+            </form>
+        </li>
+        {% else %}
+        <li class="list-group-item">No keywords added yet.</li>
         {% endfor %}
-        {% if not results %}
-            <p>No matches found.</p>
-        {% endif %}
-    </div>
+    </ul>
+
+    <!-- Matched keywords & snippets -->
+    {% if matched %}
+    <h4>Matched Keywords</h4>
+    <ul class="list-group mb-4">
+        {% for kw, snippet in zip(matched, snippets) %}
+        <li class="list-group-item">
+            <strong>{{ kw }}</strong><br>
+            {{ snippet }}
+        </li>
+        {% endfor %}
+    </ul>
+    {% elif snippets %}
+    <div class="alert alert-warning">No keywords matched.</div>
+    {% endif %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
