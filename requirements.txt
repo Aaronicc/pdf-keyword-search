@@ -2,6 +2,6 @@ Flask==3.1.1
 Flask-SQLAlchemy==3.1.1
 PyMuPDF==1.26.3
 pytesseract==0.3.13
-pdf2image==1.17.0
 Pillow==11.3.0
+opencv-python
 gunicorn==21.2.0
