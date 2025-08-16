@@ -7,8 +7,12 @@ from pdf2image import convert_from_path
 from PIL import Image
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///keywords.db'
+
+# PostgreSQL connection string from Render
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://username:password@localhost/dbname')
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
 db = SQLAlchemy(app)
 
 # Database model
@@ -16,7 +20,7 @@ class Keyword(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String(100), unique=True, nullable=False)
 
-# Ensure DB exists
+# Ensure DB tables exist
 with app.app_context():
     db.create_all()
 
