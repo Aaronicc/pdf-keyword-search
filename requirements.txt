@@ -1,6 +1,4 @@
 Flask
 Flask-SQLAlchemy
-gunicorn
-PyPDF2
-pytesseract
 pdf2image
+PyMuPDF
