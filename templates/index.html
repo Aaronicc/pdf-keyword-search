@@ -3,66 +3,61 @@
 <head>
     <meta charset="UTF-8">
     <title>PDF & Image Keyword Search</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/mini.css/3.0.1/mini-default.min.css">
     <style>
-        body { max-width: 900px; margin: 40px auto; }
-        .keywords { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-        .keyword { background: #f0f0f0; padding: 5px 10px; border-radius: 5px; display: flex; align-items: center; }
-        .keyword form { margin-left: 5px; }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .keyword-list { margin-bottom: 20px; }
+        .keyword { display: inline-block; background: #e0e0e0; padding: 5px 10px; margin: 5px; border-radius: 5px; }
         .results { margin-top: 20px; }
+        .highlight { background-color: yellow; font-weight: bold; }
     </style>
 </head>
 <body>
+    <h1>PDF & Image Keyword Search</h1>
 
-<h1>PDF & Image Keyword Search</h1>
+    <!-- Upload Form -->
+    <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="file" accept=".pdf,.png,.jpg,.jpeg" required>
+        <button type="submit">Search</button>
+    </form>
 
-<!-- Flash messages -->
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% if messages %}
-    {% for category, message in messages %}
-      <div class="card {{ category }}">{{ message }}</div>
-    {% endfor %}
-  {% endif %}
-{% endwith %}
+    <!-- Uploaded File -->
+    {% if uploaded_file %}
+        <p>Uploaded: <strong>{{ uploaded_file }}</strong></p>
+    {% endif %}
 
-<!-- Upload form -->
-<form method="POST" enctype="multipart/form-data">
-    <label for="file">Upload PDF or Image:</label>
-    <input type="file" name="file" id="file" required>
-    <button type="submit">Search</button>
-</form>
+    <!-- Add Keyword Form -->
+    <form action="{{ url_for('add_keyword') }}" method="POST">
+        <input type="text" name="keyword" placeholder="Add keyword" required>
+        <button type="submit">Add</button>
+    </form>
 
-<!-- Add keyword -->
-<h3>Add Keyword</h3>
-<form method="POST" action="{{ url_for('add_keyword') }}">
-    <input type="text" name="keyword" placeholder="Enter keyword" required>
-    <button type="submit">Add</button>
-</form>
-
-<!-- Keyword list with delete -->
-<h3>Saved Keywords</h3>
-<div class="keywords">
-    {% for kw in keywords %}
-    <div class="keyword">
-        {{ kw.word }}
-        <form method="POST" action="{{ url_for('delete_keyword', kw_id=kw.id) }}">
-            <button type="submit" style="background:none; border:none; color:red; cursor:pointer;">&times;</button>
-        </form>
-    </div>
-    {% endfor %}
-</div>
-
-<!-- Search results -->
-{% if results %}
-<div class="results">
-    <h3>Matches Found:</h3>
-    <ul>
-        {% for r in results %}
-        <li>{{ r }}</li>
+    <!-- Keyword List -->
+    <div class="keyword-list">
+        <h3>Keywords:</h3>
+        {% for kw in keywords %}
+            <div class="keyword">
+                {{ kw.word }}
+                <form action="{{ url_for('delete_keyword', kw_id=kw.id) }}" method="POST" style="display:inline;">
+                    <button type="submit">x</button>
+                </form>
+            </div>
+        {% else %}
+            <p>No keywords added yet.</p>
         {% endfor %}
-    </ul>
-</div>
-{% endif %}
+    </div>
 
+    <!-- Search Results -->
+    <div class="results">
+        <h3>Search Results:</h3>
+        {% if results %}
+            <ul>
+                {% for res in results %}
+                    <li class="highlight">{{ res }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No matches found.</p>
+        {% endif %}
+    </div>
 </body>
 </html>
