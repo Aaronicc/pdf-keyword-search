@@ -1,89 +1,71 @@
-import os
-import fitz  # PyMuPDF for PDF text extraction
 from flask import Flask, render_template, request, redirect, url_for
-from werkzeug.utils import secure_filename
+from models import db, Keyword
+import fitz  # PyMuPDF
 from PIL import Image
 import pytesseract
+import os
 
 app = Flask(__name__)
-UPLOAD_FOLDER = "uploads"
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
-ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg"}
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///keywords.db"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+app.config["UPLOAD_FOLDER"] = "uploads"
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-# Example keyword storage (later can be PostgreSQL)
-positive_keywords = ["approved", "verified", "valid"]
-negative_keywords = ["rejected", "fraud", "invalid"]
+db.init_app(app)
 
+@app.before_first_request
+def create_tables():
+    db.create_all()
 
-def allowed_file(filename):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_EXTENSIONS
+def extract_text_from_pdf(file_path):
+    text = ""
+    pdf = fitz.open(file_path)
+    for page in pdf:
+        text += page.get_text()
+    return text
 
-
-def extract_text_from_pdf(filepath):
-    """Extract text from PDF with page numbers."""
-    text_by_page = []
-    with fitz.open(filepath) as pdf:
-        for page_num, page in enumerate(pdf, start=1):
-            text = page.get_text("text")
-            text_by_page.append((page_num, text))
-    return text_by_page
-
-
-def extract_text_from_image(filepath):
-    """Extract text from image using OCR."""
-    img = Image.open(filepath)
-    text = pytesseract.image_to_string(img)
-    return [(None, text)]  # keep consistent with PDF format
-
+def extract_text_from_image(file_path):
+    img = Image.open(file_path)
+    return pytesseract.image_to_string(img)
 
 @app.route("/", methods=["GET", "POST"])
 def index():
+    results = []
     if request.method == "POST":
-        if "files" not in request.files:
-            return redirect(request.url)
+        file = request.files["file"]
+        if file:
+            file_path = os.path.join(app.config["UPLOAD_FOLDER"], file.filename)
+            file.save(file_path)
+            
+            if file.filename.lower().endswith(".pdf"):
+                text = extract_text_from_pdf(file_path)
+            else:
+                text = extract_text_from_image(file_path)
 
-        files = request.files.getlist("files")
-        results = {}
+            keywords = Keyword.query.all()
+            for kw in keywords:
+                if kw.word.lower() in text.lower():
+                    results.append({"word": kw.word, "positive": kw.positive})
+    keywords_list = Keyword.query.all()
+    return render_template("index.html", results=results, keywords=keywords_list)
 
-        for file in files:
-            if file and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-                file.save(filepath)
+@app.route("/add_keyword", methods=["POST"])
+def add_keyword():
+    word = request.form["word"]
+    positive = request.form.get("positive") == "true"
+    if not Keyword.query.filter_by(word=word).first():
+        new_kw = Keyword(word=word, positive=positive)
+        db.session.add(new_kw)
+        db.session.commit()
+    return redirect(url_for("index"))
 
-                # Extract text depending on file type
-                if filename.lower().endswith(".pdf"):
-                    texts = extract_text_from_pdf(filepath)
-                else:
-                    texts = extract_text_from_image(filepath)
-
-                matches = []
-                for page_num, text in texts:
-                    for keyword in positive_keywords + negative_keywords:
-                        if keyword.lower() in text.lower():
-                            snippet_start = text.lower().find(keyword.lower()) - 30
-                            snippet_end = snippet_start + len(keyword) + 60
-                            snippet_start = max(0, snippet_start)
-                            snippet_end = min(len(text), snippet_end)
-                            snippet = text[snippet_start:snippet_end]
-                            snippet = snippet.replace(
-                                keyword, f"<mark>{keyword}</mark>"
-                            )
-
-                            matches.append({
-                                "keyword": keyword,
-                                "type": "positive" if keyword in positive_keywords else "negative",
-                                "page": page_num,
-                                "snippet": snippet
-                            })
-
-                results[filename] = matches
-
-        return render_template("results.html", results=results)
-
-    return render_template("index.html")
-
+@app.route("/delete_keyword/<int:id>", methods=["POST"])
+def delete_keyword(id):
+    kw = Keyword.query.get(id)
+    if kw:
+        db.session.delete(kw)
+        db.session.commit()
+    return redirect(url_for("index"))
 
 if __name__ == "__main__":
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     app.run(debug=True)
