@@ -1,54 +1,58 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>PDF & Image Keyword Search</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .keywords, .results { margin-top: 20px; }
-        .keyword { display: inline-block; margin: 5px; padding: 5px; background: #f0f0f0; border-radius: 4px; }
-        .snippet { font-style: italic; color: #555; }
+        body { font-family: Arial, sans-serif; margin: 30px; }
+        .keyword-list, .results { margin-top: 20px; }
+        input[type=text] { padding: 5px; width: 200px; }
+        button { padding: 5px 10px; margin-left: 5px; }
+        li { margin-bottom: 5px; }
     </style>
 </head>
 <body>
-    <h1>PDF & Image Keyword Search</h1>
+    <h1>Keyword Search in PDF & Images</h1>
 
+    <!-- Upload Form -->
     <form method="POST" enctype="multipart/form-data">
         <input type="file" name="file" required>
         <button type="submit">Search</button>
     </form>
 
-    <div class="keywords">
-        <h2>Keywords</h2>
-        <form method="POST" action="{{ url_for('add_keyword') }}">
-            <input type="text" name="keyword" placeholder="Add new keyword" required>
-            <button type="submit">Add</button>
-        </form>
-        <div>
-            {% for kw in keywords %}
-                <span class="keyword">{{ kw.word }}
-                    <form method="POST" action="{{ url_for('delete_keyword', keyword_id=kw.id) }}" style="display:inline;">
-                        <button type="submit">x</button>
-                    </form>
-                </span>
-            {% endfor %}
-        </div>
-    </div>
+    <!-- Add Keyword Form -->
+    <form method="POST" action="{{ url_for('add_keyword') }}">
+        <input type="text" name="keyword" placeholder="Add keyword" required>
+        <button type="submit">Add</button>
+    </form>
 
-    <div class="results">
-        <h2>Search Results</h2>
-        {% for r in results %}
-            <p><b>{{ r.keyword }}</b> found on page {{ r.page }}: <span class="snippet">{{ r.snippet }}</span></p>
+    <!-- Keyword List -->
+    <div class="keyword-list">
+        <h3>Saved Keywords</h3>
+        <ul>
+        {% for kw in keywords %}
+            <li>
+                {{ kw.word }}
+                <form method="POST" action="{{ url_for('delete_keyword', id=kw.id) }}" style="display:inline;">
+                    <button type="submit">Delete</button>
+                </form>
+            </li>
+        {% else %}
+            <li>No keywords saved yet.</li>
         {% endfor %}
+        </ul>
     </div>
 
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <ul>
-                {% for msg in messages %}
-                    <li>{{ msg }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
+    <!-- Results -->
+    <div class="results">
+        <h3>Search Results</h3>
+        <ul>
+        {% for r in results %}
+            <li>{{ r }}</li>
+        {% else %}
+            <li>No results.</li>
+        {% endfor %}
+        </ul>
+    </div>
 </body>
 </html>
