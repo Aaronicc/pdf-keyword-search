@@ -1,47 +1,52 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>PDF & Image Keyword Search</title>
-<style>
-    body { font-family: Arial; margin: 30px; }
-    .positive { color: green; font-weight: bold; }
-    .negative { color: red; font-weight: bold; }
-</style>
+  <meta charset="UTF-8">
+  <title>PDF & Image Keyword Search</title>
 </head>
 <body>
-<h2>Upload PDF or Image</h2>
-<form method="POST" enctype="multipart/form-data">
+  <h1>Upload PDF or Image</h1>
+  <form method="POST" enctype="multipart/form-data">
     <input type="file" name="file" required>
     <button type="submit">Search</button>
-</form>
+  </form>
 
-<h2>Results:</h2>
-<ul>
-    {% for res in results %}
-        <li class="{{ 'positive' if res.positive else 'negative' }}">{{ res.word }}</li>
-    {% endfor %}
-</ul>
+  <h2>Keywords</h2>
+  <form method="POST" action="{{ url_for('add_keyword') }}">
+    <input type="text" name="keyword" required>
+    <button type="submit">Add Keyword</button>
+  </form>
 
-<h2>Keywords List</h2>
-<ul>
+  <ul>
     {% for kw in keywords %}
-        <li>{{ kw.word }} ({{ 'Positive' if kw.positive else 'Negative' }})
-            <form action="{{ url_for('delete_keyword', id=kw.id) }}" method="POST" style="display:inline;">
-                <button type="submit">Delete</button>
-            </form>
-        </li>
+      <li>
+        {{ kw.word }}
+        <form method="POST" action="{{ url_for('delete_keyword', kw_id=kw.id) }}" style="display:inline">
+          <button type="submit">Delete</button>
+        </form>
+      </li>
     {% endfor %}
-</ul>
+  </ul>
 
-<h2>Add Keyword</h2>
-<form action="{{ url_for('add_keyword') }}" method="POST">
-    <input type="text" name="word" required placeholder="Keyword">
-    <select name="positive">
-        <option value="true">Positive</option>
-        <option value="false">Negative</option>
-    </select>
-    <button type="submit">Add</button>
-</form>
+  <h2>Search Results</h2>
+  <ul>
+    {% for r in results %}
+      <li>
+        Keyword: {{ r.keyword }} 
+        {% if r.page %} | PDF Page: {{ r.page }} | Snippet: {{ r.snippet }} {% endif %}
+        {% if r.image %} | Image: {{ r.image }} {% endif %}
+      </li>
+    {% endfor %}
+  </ul>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul>
+        {% for category, message in messages %}
+          <li>{{ category }}: {{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
 </body>
 </html>
