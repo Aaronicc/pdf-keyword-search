@@ -1,62 +1,82 @@
 <!DOCTYPE html>
 <html>
 <head>
+  <meta charset="utf-8" />
   <title>PDF & Image Keyword Search</title>
   <style>
-    mark.positive { background: lightgreen; }
-    mark.negative { background: pink; }
-    .result { border: 1px solid #ccc; margin: 10px; padding: 10px; }
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; margin: 24px; }
+    mark.positive { background: #c7f5c4; }
+    mark.negative { background: #ffd1d1; }
+    .result { border: 1px solid #ddd; border-radius: 10px; padding: 12px; margin: 10px 0; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+    .card { border: 1px solid #ddd; border-radius: 10px; padding: 16px; }
+    .muted { color: #666; font-size: 0.9em; }
+    .inline { display: inline-block; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .tag { padding: 2px 8px; border-radius: 12px; font-size: 12px; }
+    .tag.pos { background: #e6ffe6; }
+    .tag.neg { background: #ffeaea; }
+    input[type="password"] { -webkit-text-security: disc; }
   </style>
 </head>
 <body>
-  <h1>Upload PDF(s) or Image(s)</h1>
-  <form method="POST" enctype="multipart/form-data">
-    <input type="file" name="files" accept=".pdf,image/*" multiple required>
-    <button type="submit">Upload & Search</button>
-  </form>
 
-  <h2>Manage Keywords</h2>
-  <form method="POST" action="/add_keyword">
-    <input type="text" name="word" placeholder="Enter keyword" required>
-    <select name="type">
-      <option value="positive">Positive</option>
-      <option value="negative">Negative</option>
-    </select>
-    <button type="submit">Add</button>
-  </form>
+  {% with messages = get_flashed_messages() %}
+    {% if messages %}
+      <div class="card" style="background:#fff7d6;border-color:#ffe08a;">
+        {% for message in messages %}
+          <div>⚠️ {{ message }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
 
-  <h3>Positive Keywords</h3>
-  <ul>
-    {% for k in pos %}
-      <li>{{ k }}
-        <form method="POST" action="/delete_keyword" style="display:inline;">
-          <input type="hidden" name="word" value="{{ k }}">
-          <input type="password" name="password" placeholder="Password" required>
-          <button type="submit">Delete</button>
-        </form>
-      </li>
-    {% endfor %}
-  </ul>
+  <div class="grid">
+    <div class="card">
+      <h2>Upload PDF(s) or Image(s)</h2>
+      <form method="POST" enctype="multipart/form-data">
+        <input type="file" name="files" accept=".pdf,image/*" multiple required>
+        <div class="row">
+          <label for="context">Snippet context (chars):</label>
+          <input type="number" id="context" name="context" min="20" max="400" value="50">
+        </div>
+        <button type="submit">Upload & Search</button>
+      </form>
 
-  <h3>Negative Keywords</h3>
-  <ul>
-    {% for k in neg %}
-      <li>{{ k }}
-        <form method="POST" action="/delete_keyword" style="display:inline;">
-          <input type="hidden" name="word" value="{{ k }}">
-          <input type="password" name="password" placeholder="Password" required>
-          <button type="submit">Delete</button>
-        </form>
-      </li>
-    {% endfor %}
-  </ul>
-
-  <h2>Results</h2>
-  {% for r in results %}
-    <div class="result">
-      <h3>{{ r.filename }} (Page/Image {{ r.page }})</h3>
-      <pre>{{ r.text|safe }}</pre>
+      <h3>Summary</h3>
+      <div class="row muted">
+        <div class="tag pos">Positive: {{ summary.positive }}</div>
+        <div class="tag neg">Negative: {{ summary.negative }}</div>
+        <div class="tag">Total: {{ summary.total }}</div>
+      </div>
     </div>
-  {% endfor %}
-</body>
-</html>
+
+    <div class="card">
+      <h2>Manage Keywords</h2>
+
+      <h3>Add</h3>
+      <form method="POST" action="{{ url_for('add_kw') }}" class="row">
+        <input type="text" name="word" placeholder="Enter keyword" required>
+        <select name="type">
+          <option value="positive">Positive</option>
+          <option value="negative">Negative</option>
+        </select>
+        <button type="submit">Add</button>
+      </form>
+
+      <h3 style="margin-top:16px;">Current Keywords</h3>
+      <div class="muted">Edits and deletions require the admin password.</div>
+
+      <ul>
+        {% for k in keywords %}
+          <li style="margin:8px 0;">
+            <strong>{{ k.word }}</strong>
+            <span class="tag {{ 'pos' if k.type=='positive' else 'neg' }}">{{ k.type }}</span>
+
+            <!-- Edit -->
+            <form method="POST" action="{{ url_for('edit_kw') }}" class="row" style="margin-top:6px;">
+              <input type="hidden" name="old_word" value="{{ k.word }}">
+              <input type="text" name="new_word" value="{{ k.word }}" required>
+              <select name="new_type">
+                <option value="positive" {{ 'selected' if k.type=='positive' else '' }}>Positive</option>
+                <option value="negative" {{ 'selected' if k.type
