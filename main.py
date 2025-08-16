@@ -1,34 +1,21 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.exc import IntegrityError
-from werkzeug.utils import secure_filename
-import pytesseract
-from pdf2image import convert_from_path
-from PIL import Image
 
-# ----------------------------------
-# Flask Setup
-# ----------------------------------
 app = Flask(__name__)
-app.secret_key = "supersecretkey"
 
-# Database Config (Postgres on Render / SQLite locally)
-db_url = os.getenv("DATABASE_URL", "sqlite:///keywords.db")
-if db_url.startswith("postgres://"):
-    db_url = db_url.replace("postgres://", "postgresql://", 1)
-
+# Use SQLite for storage
+db_url = "sqlite:///keywords.db"
 app.config["SQLALCHEMY_DATABASE_URI"] = db_url
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
 db = SQLAlchemy(app)
 
-# ----------------------------------
-# Database Model
-# ----------------------------------
+# Example model
 class Keyword(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    word = db.Column(db.String(120), unique=True, nullable=False)
-    type = db.Column(db.String(10), nullable=False)  # "positive" or "negative"
+    word = db.Column(db.String(100), unique=True, nullable=False)
+    type = db.Column(db.String(10))  # "positive" or "negative"
 
 with app.app_context():
     db.create_all()
