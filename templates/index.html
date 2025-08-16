@@ -9,11 +9,47 @@
   </style>
 </head>
 <body>
-  <h1>Upload PDF(s) or Image(s) for Keyword Search</h1>
+  <h1>Upload PDF(s) or Image(s)</h1>
   <form method="POST" enctype="multipart/form-data">
     <input type="file" name="files" accept=".pdf,image/*" multiple required>
     <button type="submit">Upload & Search</button>
   </form>
+
+  <h2>Manage Keywords</h2>
+  <form method="POST" action="/add_keyword">
+    <input type="text" name="word" placeholder="Enter keyword" required>
+    <select name="type">
+      <option value="positive">Positive</option>
+      <option value="negative">Negative</option>
+    </select>
+    <button type="submit">Add</button>
+  </form>
+
+  <h3>Positive Keywords</h3>
+  <ul>
+    {% for k in pos %}
+      <li>{{ k }}
+        <form method="POST" action="/delete_keyword" style="display:inline;">
+          <input type="hidden" name="word" value="{{ k }}">
+          <input type="password" name="password" placeholder="Password" required>
+          <button type="submit">Delete</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
+
+  <h3>Negative Keywords</h3>
+  <ul>
+    {% for k in neg %}
+      <li>{{ k }}
+        <form method="POST" action="/delete_keyword" style="display:inline;">
+          <input type="hidden" name="word" value="{{ k }}">
+          <input type="password" name="password" placeholder="Password" required>
+          <button type="submit">Delete</button>
+        </form>
+      </li>
+    {% endfor %}
+  </ul>
 
   <h2>Results</h2>
   {% for r in results %}
