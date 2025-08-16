@@ -1,4 +1,5 @@
 flask
 PyMuPDF
 gunicorn
+from PIL import Image
 
