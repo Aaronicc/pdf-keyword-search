@@ -4,50 +4,89 @@
     <meta charset="UTF-8">
     <title>Search Results</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        h1 { color: #2c3e50; }
-        .file-block { margin-bottom: 30px; }
-        .match { margin-left: 20px; }
-        .positive { color: green; font-weight: bold; }
-        .negative { color: red; font-weight: bold; }
-        .snippet { font-style: italic; color: #555; }
-        .summary { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; margin-bottom: 20px; }
-        .summary span { margin-right: 15px; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 30px;
+            background-color: #f9f9f9;
+        }
+        h1, h2, h3 {
+            color: #333;
+        }
+        .summary {
+            background: #fff;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+        }
+        .summary p {
+            font-size: 16px;
+            margin: 5px 0;
+        }
+        ul {
+            list-style: none;
+            padding-left: 0;
+        }
+        li {
+            background: #fff;
+            margin: 6px 0;
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+        }
+        .positive {
+            color: green;
+            font-weight: bold;
+        }
+        .negative {
+            color: red;
+            font-weight: bold;
+        }
+        mark {
+            background-color: yellow;
+            font-weight: bold;
+            padding: 0 2px;
+            border-radius: 3px;
+        }
+        a {
+            display: inline-block;
+            margin-top: 20px;
+            text-decoration: none;
+            background: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 8px;
+        }
+        a:hover {
+            background: #0056b3;
+        }
     </style>
 </head>
 <body>
-    <h1>🔍 Search Results</h1>
-    <a href="/">⬅ Back</a>
+    <h1>Search Results</h1>
 
-    <!-- Summary Section -->
     <div class="summary">
         <h2>Summary</h2>
-        <span class="positive">✅ Positive Matches: {{ summary.positive }}</span>
-        <span class="negative">❌ Negative Matches: {{ summary.negative }}</span>
-        <span>📊 Total: {{ summary.total }}</span>
+        <p>✅ Positive: <span class="positive">{{ summary.positive }}</span></p>
+        <p>❌ Negative: <span class="negative">{{ summary.negative }}</span></p>
+        <p>📊 Total Matches: {{ summary.total }}</p>
     </div>
 
-    {% if results %}
-        {% for file in results %}
-        <div class="file-block">
-            <h2>{{ file.filename }}</h2>
-            {% if file.matches %}
-                <ul>
-                {% for m in file.matches %}
-                    <li class="match">
-                        <span class="{{ m.type }}">{{ m.word }}</span>
-                        ({{ m.type }}, Page {{ m.page }}): 
-                        <span class="snippet">{{ m.snippet }}...</span>
-                    </li>
-                {% endfor %}
-                </ul>
-            {% else %}
-                <p>No matches found.</p>
-            {% endif %}
-        </div>
-        {% endfor %}
-    {% else %}
-        <p>No results.</p>
-    {% endif %}
+    {% for result in results %}
+        <h3>File: {{ result.filename }}</h3>
+        <ul>
+            {% for match in result.matches %}
+                <li>
+                    <span class="{{ match.type }}">
+                        [{{ match.type|capitalize }}]
+                    </span>
+                    (Page {{ match.page }}): 
+                    {{ match.snippet|safe }}
+                </li>
+            {% endfor %}
+        </ul>
+    {% endfor %}
+
+    <a href="{{ url_for('index') }}">⬅️ Upload More Files</a>
 </body>
 </html>
