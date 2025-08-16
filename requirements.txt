@@ -1,8 +1,16 @@
-Flask==3.0.3
-Flask-SQLAlchemy==3.1.1
-pytesseract==0.3.13
-Pillow==11.0.0
-pdf2image==1.17.0
-psycopg[binary]==3.2.9
-gunicorn==23.0.0
+flask
+flask_sqlalchemy
+psycopg2-binary
+gunicorn
+werkzeug
 
+# OCR and Image handling
+pillow
+pytesseract
+pdf2image
+
+# PDF handling
+PyPDF2
+
+# Environment variable support
+python-dotenv
