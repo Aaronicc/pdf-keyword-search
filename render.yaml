@@ -1,8 +1,16 @@
 services:
   - type: web
-    name: pdf-image-keyword-search
-    env: python
-    buildCommand: |
-      apt-get update && apt-get install -y tesseract-ocr
-      pip install -r requirements.txt
-    startCommand: gunicorn main:app
+    name: pdf-image-ocr-search
+    env: docker
+    plan: free
+    autoDeploy: true
+    region: oregon
+    envVars:
+      - key: DATABASE_URL
+        # Set this in Render dashboard to your Postgres URL.
+        # Example: postgres://USER:PASSWORD@HOST:5432/DBNAME
+        sync: false
+      - key: FLASK_ENV
+        value: production
+      - key: DELETE_PASSWORD
+        value: secret123
