@@ -1,5 +1,4 @@
-flask
+pytesseract
 PyMuPDF
+Flask
 gunicorn
-from PIL import Image
-
