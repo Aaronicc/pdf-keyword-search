@@ -79,4 +79,41 @@
               <input type="text" name="new_word" value="{{ k.word }}" required>
               <select name="new_type">
                 <option value="positive" {{ 'selected' if k.type=='positive' else '' }}>Positive</option>
-                <option value="negative" {{ 'selected' if k.type
+                <option value="negative" {{ 'selected' if k.type=='negative' else '' }}>Negative</option>
+              </select>
+              <input type="password" name="password" placeholder="Password" required>
+              <button type="submit">Save</button>
+            </form>
+
+            <!-- Delete -->
+            <form method="POST" action="{{ url_for('del_kw') }}" class="row" style="margin-top:6px;">
+              <input type="hidden" name="word" value="{{ k.word }}">
+              <input type="password" name="password" placeholder="Password" required>
+              <button type="submit">Delete</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+
+      {% if admin_password_set %}
+        <div class="muted">✅ Admin password is set via env.</div>
+      {% else %}
+        <div class="muted">⚠️ Using default password. Set KEYWORD_ADMIN_PASSWORD env var.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <h2 style="margin-top:24px;">Results</h2>
+  {% if results %}
+    {% for r in results %}
+      <div class="result">
+        <div class="muted">{{ r.filename }} — Page/Image {{ r.page }} — keyword: <strong>{{ r.keyword }}</strong> ({{ r.tag }})</div>
+        <p>{{ r.snippet|safe }}</p>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="muted">No keywords found yet. Upload files above.</div>
+  {% endif %}
+
+</body>
+</html>
