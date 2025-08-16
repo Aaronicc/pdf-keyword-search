@@ -1,44 +1,31 @@
 import os
-from flask import Flask
+from flask import Flask, request, render_template, redirect, url_for, jsonify
 from flask_sqlalchemy import SQLAlchemy
+from PyPDF2 import PdfReader
 
 app = Flask(__name__)
 
-# Use SQLite for storage
-db_url = "sqlite:///keywords.db"
-app.config["SQLALCHEMY_DATABASE_URI"] = db_url
+# ----------------------------
+# Database setup (SQLite only)
+# ----------------------------
+app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///keywords.db"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
-
 db = SQLAlchemy(app)
 
-# Example model
+# ----------------------------
+# Models
+# ----------------------------
 class Keyword(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     word = db.Column(db.String(100), unique=True, nullable=False)
-    type = db.Column(db.String(10))  # "positive" or "negative"
+    type = db.Column(db.String(10), nullable=False)  # "positive" or "negative"
 
 with app.app_context():
     db.create_all()
 
-# ----------------------------------
-# OCR Helpers
-# ----------------------------------
-def extract_text_from_pdf(pdf_path):
-    """Extract text from PDF using OCR."""
-    images = convert_from_path(pdf_path)
-    text = ""
-    for img in images:
-        text += pytesseract.image_to_string(img) + "\n"
-    return text
-
-def extract_text_from_image(image_path):
-    """Extract text from a single image."""
-    img = Image.open(image_path)
-    return pytesseract.image_to_string(img)
-
-# ----------------------------------
+# ----------------------------
 # Routes
-# ----------------------------------
+# ----------------------------
 @app.route("/")
 def index():
     keywords = Keyword.query.all()
@@ -47,65 +34,45 @@ def index():
 @app.route("/add_keyword", methods=["POST"])
 def add_keyword():
     word = request.form.get("word")
-    ktype = request.form.get("type")
-    if not word:
-        flash("Keyword cannot be empty!", "danger")
-        return redirect(url_for("index"))
+    ktype = request.form.get("type")  # positive / negative
 
-    try:
-        db.session.add(Keyword(word=word.strip(), type=ktype))
-        db.session.commit()
-        flash("Keyword added successfully!", "success")
-    except IntegrityError:
-        db.session.rollback()
-        flash("Keyword already exists!", "danger")
+    if not word or not ktype:
+        return jsonify({"error": "Missing keyword or type"}), 400
 
-    return redirect(url_for("index"))
+    existing = Keyword.query.filter_by(word=word).first()
+    if existing:
+        return jsonify({"error": "Keyword already exists"}), 400
 
-@app.route("/delete_keyword/<int:id>", methods=["POST"])
-def delete_keyword(id):
-    keyword = Keyword.query.get_or_404(id)
-    db.session.delete(keyword)
+    new_kw = Keyword(word=word, type=ktype)
+    db.session.add(new_kw)
     db.session.commit()
-    flash("Keyword deleted!", "success")
     return redirect(url_for("index"))
 
-@app.route("/upload", methods=["POST"])
-def upload():
-    if "files" not in request.files:
-        flash("No file part", "danger")
-        return redirect(url_for("index"))
+@app.route("/delete_keyword/<int:kw_id>", methods=["POST"])
+def delete_keyword(kw_id):
+    kw = Keyword.query.get_or_404(kw_id)
+    db.session.delete(kw)
+    db.session.commit()
+    return redirect(url_for("index"))
 
-    files = request.files.getlist("files")
-    if not files or files[0].filename == "":
-        flash("No selected files", "danger")
-        return redirect(url_for("index"))
+@app.route("/upload_pdf", methods=["POST"])
+def upload_pdf():
+    file = request.files["pdf"]
+    if not file:
+        return jsonify({"error": "No file uploaded"}), 400
 
-    all_text = ""
-    upload_folder = "uploads"
-    os.makedirs(upload_folder, exist_ok=True)
+    reader = PdfReader(file)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text() or ""
 
-    for file in files:
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(upload_folder, filename)
-        file.save(filepath)
+    found = []
+    for kw in Keyword.query.all():
+        if kw.word.lower() in text.lower():
+            found.append({"word": kw.word, "type": kw.type})
 
-        if filename.lower().endswith(".pdf"):
-            all_text += extract_text_from_pdf(filepath)
-        else:
-            all_text += extract_text_from_image(filepath)
+    return jsonify({"matches": found})
 
-    # Search keywords
-    results = []
-    keywords = Keyword.query.all()
-    for keyword in keywords:
-        if keyword.word.lower() in all_text.lower():
-            results.append({"word": keyword.word, "type": keyword.type})
 
-    return render_template("results.html", results=results, text=all_text)
-
-# ----------------------------------
-# Run
-# ----------------------------------
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
+    app.run(host="0.0.0.0", port=5000)
