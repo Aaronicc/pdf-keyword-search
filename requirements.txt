@@ -1,16 +1,8 @@
-flask
-flask_sqlalchemy
-psycopg2-binary
+Flask
 gunicorn
-werkzeug
-
-# OCR and Image handling
-pillow
+sqlalchemy
+psycopg2-binary
 pytesseract
+pillow
 pdf2image
-
-# PDF handling
 PyPDF2
-
-# Environment variable support
-python-dotenv
