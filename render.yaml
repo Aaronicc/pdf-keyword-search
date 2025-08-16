@@ -1,16 +1,6 @@
 services:
   - type: web
-    name: pdf-image-keyword-search
+    name: pdf-keyword-search
     env: python
-    plan: free
-    buildCommand: "pip install -r requirements.txt"
-    startCommand: "gunicorn main:app"
-    envVars:
-      - key: DATABASE_URL
-        fromDatabase:
-          name: pdfimg-keywords-db
-          property: connectionString
-
-databases:
-  - name: pdfimg-keywords-db
-    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn main:app
