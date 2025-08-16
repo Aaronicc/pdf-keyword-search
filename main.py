@@ -1,102 +1,116 @@
 import os
-import re
-import fitz  # PyMuPDF for PDFs
-import pytesseract
-from PIL import Image
 from flask import Flask, render_template, request, redirect, url_for
+from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
+from PyPDF2 import PdfReader
+from PIL import Image
+import pytesseract
 
+# ---------------- Flask Setup ----------------
 app = Flask(__name__)
+app.config["UPLOAD_FOLDER"] = "uploads"
+os.makedirs(app.config["UPLOAD_FOLDER"], exist_ok=True)
 
-# Upload folder
-UPLOAD_FOLDER = "uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-app.config["UPLOAD_FOLDER"] = UPLOAD_FOLDER
+# Use PostgreSQL if on Render, else fallback to SQLite
+app.config["SQLALCHEMY_DATABASE_URI"] = os.getenv(
+    "DATABASE_URL", "sqlite:///keywords.db"
+)
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+db = SQLAlchemy(app)
 
-# Example keyword lists
-positive_keywords = ["approved", "success", "valid"]
-negative_keywords = ["declined", "failed", "error"]
+# ---------------- Database Model ----------------
+class Keyword(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    word = db.Column(db.String(100), unique=True, nullable=False)
+    type = db.Column(db.String(20), nullable=False)  # "positive" or "negative"
 
-def extract_text_from_pdf(file_path):
-    """Extract text per page from PDF using PyMuPDF."""
-    text_pages = []
-    doc = fitz.open(file_path)
-    for page_num, page in enumerate(doc, start=1):
-        text = page.get_text("text")
-        text_pages.append((page_num, text))
-    return text_pages
+with app.app_context():
+    db.create_all()
 
-def extract_text_from_image(file_path):
-    """Extract text from an image using pytesseract."""
-    img = Image.open(file_path)
-    text = pytesseract.image_to_string(img)
-    return [(1, text)]  # treat image as single-page
+# ---------------- Helpers ----------------
+def extract_text_from_pdf(filepath):
+    """Extract text from a PDF file"""
+    text = ""
+    try:
+        reader = PdfReader(filepath)
+        for page in reader.pages:
+            text += page.extract_text() or ""
+    except Exception as e:
+        text = f"[Error reading PDF: {e}]"
+    return text
 
-def highlight_snippet(snippet, word):
-    """Highlight the keyword in the snippet using <mark> tags."""
-    pattern = re.compile(re.escape(word), re.IGNORECASE)
-    return pattern.sub(lambda m: f"<mark>{m.group(0)}</mark>", snippet)
+def extract_text_from_image(filepath):
+    """Extract text from an image using OCR"""
+    try:
+        image = Image.open(filepath)
+        text = pytesseract.image_to_string(image)
+    except Exception as e:
+        text = f"[Error reading Image: {e}]"
+    return text
 
-def search_keywords(text_pages, keywords, keyword_type):
-    """Search keywords in extracted text pages and return matches."""
-    matches = []
-    for page_num, text in text_pages:
-        for word in keywords:
-            pattern = re.compile(rf"(.{{0,30}}{word}.{{0,30}})", re.IGNORECASE)
-            for snippet in pattern.findall(text):
-                highlighted = highlight_snippet(snippet.strip(), word)
-                matches.append({
-                    "word": word,
-                    "type": keyword_type,
-                    "page": page_num,
-                    "snippet": highlighted
-                })
-    return matches
+def highlight_keywords(text, keywords):
+    """Highlight positive (green) and negative (red) keywords"""
+    for kw in keywords:
+        if kw.type == "positive":
+            text = text.replace(kw.word, f"<mark style='background: lightgreen;'>{kw.word}</mark>")
+        else:
+            text = text.replace(kw.word, f"<mark style='background: pink;'>{kw.word}</mark>")
+    return text
 
-@app.route("/", methods=["GET", "POST"])
+# ---------------- Routes ----------------
+@app.route("/", methods=["GET"])
 def index():
-    if request.method == "POST":
-        uploaded_files = request.files.getlist("files")
-        results = []
-        positive_count = 0
-        negative_count = 0
+    keywords = Keyword.query.all()
+    return render_template("index.html", keywords=keywords)
 
-        for file in uploaded_files:
-            if file.filename == "":
-                continue
+@app.route("/add_keyword", methods=["POST"])
+def add_keyword():
+    word = request.form.get("keyword")
+    type_ = request.form.get("type")
 
+    if word:
+        # Prevent duplicates
+        existing = Keyword.query.filter_by(word=word).first()
+        if not existing:
+            new_kw = Keyword(word=word, type=type_)
+            db.session.add(new_kw)
+            db.session.commit()
+    return redirect(url_for("index"))
+
+@app.route("/delete_keyword/<int:id>", methods=["POST"])
+def delete_keyword(id):
+    kw = Keyword.query.get_or_404(id)
+    db.session.delete(kw)
+    db.session.commit()
+    return redirect(url_for("index"))
+
+@app.route("/", methods=["POST"])
+def upload_files():
+    uploaded_files = request.files.getlist("files")
+    keywords = Keyword.query.all()
+    results = []
+
+    for file in uploaded_files:
+        if file:
             filename = secure_filename(file.filename)
-            file_path = os.path.join(app.config["UPLOAD_FOLDER"], filename)
-            file.save(file_path)
+            filepath = os.path.join(app.config["UPLOAD_FOLDER"], filename)
+            file.save(filepath)
 
-            # Detect file type
+            # Extract text depending on file type
             if filename.lower().endswith(".pdf"):
-                text_pages = extract_text_from_pdf(file_path)
+                text = extract_text_from_pdf(filepath)
             else:
-                text_pages = extract_text_from_image(file_path)
+                text = extract_text_from_image(filepath)
 
-            # Search for keywords
-            pos_matches = search_keywords(text_pages, positive_keywords, "positive")
-            neg_matches = search_keywords(text_pages, negative_keywords, "negative")
+            highlighted = highlight_keywords(text, keywords)
 
-            positive_count += len(pos_matches)
-            negative_count += len(neg_matches)
-
-            matches = pos_matches + neg_matches
             results.append({
                 "filename": filename,
-                "matches": matches
+                "content": highlighted
             })
 
-        summary = {
-            "positive": positive_count,
-            "negative": negative_count,
-            "total": positive_count + negative_count
-        }
+    return render_template("results.html", results=results, keywords=keywords)
 
-        return render_template("results.html", results=results, summary=summary)
-
-    return render_template("index.html")
-
+# ---------------- Run ----------------
 if __name__ == "__main__":
     app.run(debug=True)
