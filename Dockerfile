@@ -1,31 +1,25 @@
-# Use a lightweight Python base image
-FROM python:3.10-slim
+FROM python:3.13-slim
 
-# Prevent interactive prompts during package installation
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Install system dependencies (including Tesseract OCR and Poppler for PDFs)
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
     tesseract-ocr \
-    libtesseract-dev \
     poppler-utils \
-    gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
+# Set workdir
 WORKDIR /app
 
-# Copy requirements first (for caching)
+# Copy requirements
 COPY requirements.txt .
 
-# Install Python dependencies
+# Install python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy the rest of the project
+# Copy project
 COPY . .
 
-# Expose Flask port
-EXPOSE 5000
+# Expose port
+EXPOSE 10000
 
-# Run the Flask app
-CMD ["gunicorn", "-b", "0.0.0.0:5000", "main:app"]
+# Run app with Gunicorn
+CMD ["gunicorn", "main:app", "-b", "0.0.0.0:10000"]
