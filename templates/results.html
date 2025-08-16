@@ -1,51 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Search Results</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 30px; background: #f5f7fb; }
-    h1, h2, h3 { color: #333; }
-    .summary { background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,.08); margin-bottom: 20px; }
-    .positive { color: green; font-weight: bold; }
-    .negative { color: red; font-weight: bold; }
-    .file-block { background: #fff; padding: 16px; border-radius: 12px; box-shadow: 0 1px 6px rgba(0,0,0,.06); margin-bottom: 16px; }
-    ul { list-style: none; padding-left: 0; }
-    li { padding: 8px; border-bottom: 1px solid #eee; }
-    mark { background: yellow; padding: 0 2px; border-radius: 3px; }
-    a.btn { display: inline-block; text-decoration: none; background: #0062ff; color: #fff; padding: 10px 14px; border-radius: 10px; margin-top: 10px; }
-    a.btn:hover { background: #004bd1; }
-  </style>
+    <title>Results</title>
 </head>
 <body>
-  <h1>🔍 Search Results</h1>
-
-  <div class="summary">
-    <h2>Summary</h2>
-    <p>✅ Positive: <span class="positive">{{ summary.positive }}</span></p>
-    <p>❌ Negative: <span class="negative">{{ summary.negative }}</span></p>
-    <p>📊 Total Matches: {{ summary.total }}</p>
-  </div>
-
-  {% for file in results %}
-    <div class="file-block">
-      <h3>File: {{ file.filename }}</h3>
-      {% if file.matches %}
-        <ul>
-          {% for m in file.matches %}
-            <li>
-              <span class="{{ m.type }}">[{{ m.type|capitalize }}]</span>
-              (Page {{ m.page }}):
-              {{ m.snippet|safe }}
-            </li>
-          {% endfor %}
-        </ul>
-      {% else %}
-        <p>No matches found.</p>
-      {% endif %}
-    </div>
-  {% endfor %}
-
-  <a class="btn" href="{{ url_for('index') }}">⬅️ Upload More Files</a>
+    <h1>Search Results</h1>
+    {% for filename, found_keywords in results.items() %}
+        <h2>{{ filename }}</h2>
+        {% if found_keywords %}
+            <ul>
+                {% for kw in found_keywords %}
+                    <li>{{ kw }}</li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <p>No keywords found.</p>
+        {% endif %}
+    {% endfor %}
+    <a href="/">Back</a>
 </body>
 </html>
