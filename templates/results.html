@@ -11,11 +11,21 @@
         .positive { color: green; font-weight: bold; }
         .negative { color: red; font-weight: bold; }
         .snippet { font-style: italic; color: #555; }
+        .summary { background: #f9f9f9; padding: 10px; border: 1px solid #ddd; margin-bottom: 20px; }
+        .summary span { margin-right: 15px; }
     </style>
 </head>
 <body>
     <h1>🔍 Search Results</h1>
     <a href="/">⬅ Back</a>
+
+    <!-- Summary Section -->
+    <div class="summary">
+        <h2>Summary</h2>
+        <span class="positive">✅ Positive Matches: {{ summary.positive }}</span>
+        <span class="negative">❌ Negative Matches: {{ summary.negative }}</span>
+        <span>📊 Total: {{ summary.total }}</span>
+    </div>
 
     {% if results %}
         {% for file in results %}
