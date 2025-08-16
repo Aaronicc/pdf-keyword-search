@@ -1,33 +1,75 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>PDF & Image Keyword Search</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        .keyword-list { margin-top: 20px; }
+        .keyword-item { display: flex; align-items: center; margin-bottom: 5px; }
+        .keyword-item span { flex: 1; }
+        button { margin-left: 5px; }
+        .results { margin-top: 20px; }
+        .result { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+        .result strong { color: #007BFF; }
+    </style>
+    <script>
+        function deleteKeyword(id) {
+            const password = prompt("Enter password to delete keyword:");
+            if (!password || password !== 'admin123') return;  // Change password as needed
+
+            fetch(`/delete_keyword/${id}`, { method: 'POST' })
+                .then(() => location.reload());
+        }
+
+        function editKeyword(id) {
+            const newWord = prompt("Enter new keyword:");
+            const password = prompt("Enter password to edit keyword:");
+            if (!password || password !== 'admin123') return;
+
+            fetch(`/edit_keyword/${id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ word: newWord })
+            }).then(() => location.reload());
+        }
+    </script>
 </head>
 <body>
-    <h1>Upload PDF</h1>
+    <h1>PDF & Image Keyword Search</h1>
+
     <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="pdf" accept=".pdf" required>
+        <input type="file" name="pdf" required>
         <button type="submit">Search</button>
     </form>
 
-    <h2>Keywords</h2>
-    <ul>
+    <div class="keyword-list">
+        <h2>Keywords</h2>
+        <form method="POST" action="/add_keyword">
+            <input type="text" name="keyword" required>
+            <button type="submit">Add Keyword</button>
+        </form>
         {% for kw in keywords %}
-        <li>{{ kw.word }}</li>
+            <div class="keyword-item">
+                <span>{{ kw.word }}</span>
+                <button onclick="editKeyword({{ kw.id }})">Edit</button>
+                <button onclick="deleteKeyword({{ kw.id }})">Delete</button>
+            </div>
         {% endfor %}
-    </ul>
+    </div>
 
-    <h2>Results</h2>
-    <ul>
+    <div class="results">
+        <h2>Search Results</h2>
         {% for r in results %}
-        <li><strong>{{ r.keyword }}</strong> found on {{ r.page }}: {{ r.snippet }}</li>
+            <div class="result">
+                <strong>{{ r.keyword }}</strong> found on <em>{{ r.page }}</em>
+                <p>{{ r.snippet }}...</p>
+            </div>
         {% endfor %}
-    </ul>
-
-    <h2>Add Keyword</h2>
-    <form method="POST" action="/add_keyword">
-        <input type="text" name="keyword" required>
-        <button type="submit">Add</button>
-    </form>
+        {% if not results %}
+            <p>No matches found.</p>
+        {% endif %}
+    </div>
 </body>
 </html>
