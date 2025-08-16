@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Search Results</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #2c3e50; }
+        .file-block { margin-bottom: 30px; }
+        .match { margin-left: 20px; }
+        .positive { color: green; font-weight: bold; }
+        .negative { color: red; font-weight: bold; }
+        .snippet { font-style: italic; color: #555; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Search Results</h1>
+    <a href="/">⬅ Back</a>
+
+    {% if results %}
+        {% for file in results %}
+        <div class="file-block">
+            <h2>{{ file.filename }}</h2>
+            {% if file.matches %}
+                <ul>
+                {% for m in file.matches %}
+                    <li class="match">
+                        <span class="{{ m.type }}">{{ m.word }}</span>
+                        ({{ m.type }}, Page {{ m.page }}): 
+                        <span class="snippet">{{ m.snippet }}...</span>
+                    </li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p>No matches found.</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% else %}
+        <p>No results.</p>
+    {% endif %}
+</body>
+</html>
