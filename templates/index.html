@@ -1,52 +1,85 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>PDF & Image Keyword Search</title>
+    <meta charset="UTF-8">
+    <title>PDF & Image Keyword Search</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        h1 { color: #333; }
+        form { margin-bottom: 20px; }
+        input[type="text"], input[type="file"] { padding: 5px; margin-right: 10px; }
+        button { padding: 5px 10px; }
+        .flash { color: red; margin-bottom: 15px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 8px; border: 1px solid #ccc; text-align: left; }
+    </style>
 </head>
 <body>
-  <h1>Upload PDF or Image</h1>
-  <form method="POST" enctype="multipart/form-data">
+
+<h1>PDF & Image Keyword Search</h1>
+
+<!-- Flash messages -->
+{% with messages = get_flashed_messages() %}
+  {% if messages %}
+    <div class="flash">
+      {% for message in messages %}
+        <p>{{ message }}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
+<!-- Upload Form -->
+<form method="POST" enctype="multipart/form-data">
     <input type="file" name="file" required>
     <button type="submit">Search</button>
-  </form>
+</form>
 
-  <h2>Keywords</h2>
-  <form method="POST" action="{{ url_for('add_keyword') }}">
-    <input type="text" name="keyword" required>
+<!-- Add Keyword Form -->
+<form action="{{ url_for('add_keyword') }}" method="POST">
+    <input type="text" name="keyword" placeholder="Enter keyword" required>
     <button type="submit">Add Keyword</button>
-  </form>
+</form>
 
-  <ul>
+<!-- Keywords List -->
+<h2>Saved Keywords</h2>
+<table>
+    <tr>
+        <th>ID</th>
+        <th>Keyword</th>
+        <th>Action</th>
+    </tr>
     {% for kw in keywords %}
-      <li>
-        {{ kw.word }}
-        <form method="POST" action="{{ url_for('delete_keyword', kw_id=kw.id) }}" style="display:inline">
-          <button type="submit">Delete</button>
-        </form>
-      </li>
+    <tr>
+        <td>{{ kw.id }}</td>
+        <td>{{ kw.word }}</td>
+        <td>
+            <form action="{{ url_for('delete_keyword', keyword_id=kw.id) }}" method="POST" style="display:inline;">
+                <button type="submit">Delete</button>
+            </form>
+        </td>
+    </tr>
     {% endfor %}
-  </ul>
+</table>
 
-  <h2>Search Results</h2>
-  <ul>
+<!-- Search Results -->
+{% if results %}
+<h2>Search Results</h2>
+<table>
+    <tr>
+        <th>Keyword</th>
+        <th>Page</th>
+        <th>Snippet</th>
+    </tr>
     {% for r in results %}
-      <li>
-        Keyword: {{ r.keyword }} 
-        {% if r.page %} | PDF Page: {{ r.page }} | Snippet: {{ r.snippet }} {% endif %}
-        {% if r.image %} | Image: {{ r.image }} {% endif %}
-      </li>
+    <tr>
+        <td>{{ r.keyword }}</td>
+        <td>{{ r.page }}</td>
+        <td>{{ r.snippet }}</td>
+    </tr>
     {% endfor %}
-  </ul>
+</table>
+{% endif %}
 
-  {% with messages = get_flashed_messages(with_categories=true) %}
-    {% if messages %}
-      <ul>
-        {% for category, message in messages %}
-          <li>{{ category }}: {{ message }}</li>
-        {% endfor %}
-      </ul>
-    {% endif %}
-  {% endwith %}
 </body>
 </html>
