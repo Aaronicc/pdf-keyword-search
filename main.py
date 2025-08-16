@@ -1,102 +1,91 @@
-import os
-from flask import Flask, render_template, request, redirect, url_for
-from flask_sqlalchemy import SQLAlchemy
-import fitz  # PyMuPDF
-import pytesseract
-from PIL import Image, ImageEnhance
-import cv2
-import numpy as np
-
-# -------------------- Configuration -------------------- #
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///keywords.db'
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = 'uploads'
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-db = SQLAlchemy(app)
-
-# -------------------- Database Model -------------------- #
-class Keyword(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    word = db.Column(db.String(100), unique=True, nullable=False)
-
-# Initialize DB (create tables if not exists)
-with app.app_context():
-    db.create_all()
-
-# -------------------- Helper Functions -------------------- #
-def preprocess_image(img_path):
-    """Preprocess image for better OCR results."""
-    img = Image.open(img_path).convert('L')  # Grayscale
-    enhancer = ImageEnhance.Contrast(img)
-    img = enhancer.enhance(2.0)
-    img_np = np.array(img)
-    _, img_thresh = cv2.threshold(img_np, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-    img_blur = cv2.medianBlur(img_thresh, 3)
-    return Image.fromarray(img_blur)
-
-def extract_text_from_pdf(pdf_path):
-    """Extract text from PDF using PyMuPDF."""
-    doc = fitz.open(pdf_path)
-    text = ""
-    for page in doc:
-        text += page.get_text()
-    return text
-
-def extract_text_from_image(img_path):
-    """Extract text from image using pytesseract with preprocessing."""
-    processed_img = preprocess_image(img_path)
-    return pytesseract.image_to_string(processed_img)
-
-# -------------------- Routes -------------------- #
-@app.route('/', methods=['GET', 'POST'])
-def index():
-    all_keywords = Keyword.query.all()
-    search_results = []
-    uploaded_file = None
-
-    if request.method == 'POST':
-        file = request.files.get('file')
-        if file:
-            uploaded_file = file.filename
-            file_path = os.path.join(app.config['UPLOAD_FOLDER'], file.filename)
-            file.save(file_path)
-
-            # Determine if PDF or image
-            if file.filename.lower().endswith('.pdf'):
-                text = extract_text_from_pdf(file_path)
-            elif file.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
-                text = extract_text_from_image(file_path)
-            else:
-                text = ""
-
-            # Search for keywords
-            for kw in all_keywords:
-                if kw.word.lower() in text.lower():
-                    search_results.append(kw.word)
-
-    return render_template('index.html', keywords=all_keywords,
-                           results=search_results, uploaded_file=uploaded_file)
-
-@app.route('/add_keyword', methods=['POST'])
-def add_keyword():
-    word = request.form.get('keyword')
-    if word:
-        existing = Keyword.query.filter_by(word=word).first()
-        if not existing:
-            new_kw = Keyword(word=word)
-            db.session.add(new_kw)
-            db.session.commit()
-    return redirect(url_for('index'))
-
-@app.route('/delete_keyword/<int:kw_id>', methods=['POST'])
-def delete_keyword(kw_id):
-    kw = Keyword.query.get_or_404(kw_id)
-    db.session.delete(kw)
-    db.session.commit()
-    return redirect(url_for('index'))
-
-# -------------------- Run App -------------------- #
-if __name__ == '__main__':
-    app.run(debug=True)
+==> Exited with status 1
+==> Common ways to troubleshoot your deploy: https://render.com/docs/troubleshooting-deploys
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/bin/gunicorn", line 8, in <module>
+    sys.exit(run())
+             ~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 67, in run
+    WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]").run()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 236, in run
+    super().run()
+    ~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 72, in run
+    Arbiter(self).run()
+    ~~~~~~~^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/arbiter.py", line 58, in __init__
+    self.setup(app)
+    ~~~~~~~~~~^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/arbiter.py", line 118, in setup
+    self.app.wsgi()
+    ~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 67, in wsgi
+    self.callable = self.load()
+                    ~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 58, in load
+    return self.load_wsgiapp()
+           ~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 48, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/util.py", line 371, in import_app
+    mod = importlib.import_module(module)
+  File "/usr/local/lib/python3.13/importlib/__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/opt/render/project/src/main.py", line 15, in <module>
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen os>", line 227, in makedirs
+FileExistsError: [Errno 17] File exists: 'uploads'
+==> Running 'gunicorn main:app'
+Traceback (most recent call last):
+  File "/opt/render/project/src/.venv/bin/gunicorn", line 8, in <module>
+    sys.exit(run())
+             ~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 67, in run
+    WSGIApplication("%(prog)s [OPTIONS] [APP_MODULE]").run()
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 236, in run
+    super().run()
+    ~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 72, in run
+    Arbiter(self).run()
+    ~~~~~~~^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/arbiter.py", line 58, in __init__
+    self.setup(app)
+    ~~~~~~~~~~^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/arbiter.py", line 118, in setup
+    self.app.wsgi()
+    ~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/base.py", line 67, in wsgi
+    self.callable = self.load()
+                    ~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 58, in load
+    return self.load_wsgiapp()
+           ~~~~~~~~~~~~~~~~~^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/app/wsgiapp.py", line 48, in load_wsgiapp
+    return util.import_app(self.app_uri)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^
+  File "/opt/render/project/src/.venv/lib/python3.13/site-packages/gunicorn/util.py", line 371, in import_app
+    mod = importlib.import_module(module)
+  File "/usr/local/lib/python3.13/importlib/__init__.py", line 88, in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen importlib._bootstrap>", line 1387, in _gcd_import
+  File "<frozen importlib._bootstrap>", line 1360, in _find_and_load
+  File "<frozen importlib._bootstrap>", line 1331, in _find_and_load_unlocked
+  File "<frozen importlib._bootstrap>", line 935, in _load_unlocked
+  File "<frozen importlib._bootstrap_external>", line 1026, in exec_module
+  File "<frozen importlib._bootstrap>", line 488, in _call_with_frames_removed
+  File "/opt/render/project/src/main.py", line 15, in <module>
+    os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+    ~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "<frozen os>", line 227, in makedirs
+FileExistsError: [Errno 17] File exists: 'uploads'
