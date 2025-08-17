@@ -1,60 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>PDF Keyword Search</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; }
-        h1 { color: #333; }
-        form { margin-bottom: 20px; }
-        input[type="text"] { padding: 5px; width: 200px; }
-        input[type="submit"] { padding: 5px 10px; }
-        ul { list-style-type: none; padding: 0; }
-        li { margin-bottom: 5px; }
-        .keyword { display: inline-block; margin-right: 10px; }
-        .result { background-color: #eef; padding: 5px; margin-bottom: 5px; }
-    </style>
+    <title>Image Reader</title>
 </head>
 <body>
-    <h1>PDF Keyword Search</h1>
-
-    <!-- Upload PDF -->
+    <h2>Upload an Image to Extract Text</h2>
     <form method="POST" enctype="multipart/form-data">
-        <label>Upload PDF: </label>
-        <input type="file" name="pdf_file" accept=".pdf" required>
-        <input type="submit" value="Search PDF">
+        <input type="file" name="file" accept="image/*" required>
+        <input type="submit" value="Upload">
     </form>
 
-    <!-- Add Keyword -->
-    <form method="POST" action="{{ url_for('add_keyword') }}">
-        <label>Add Keyword: </label>
-        <input type="text" name="keyword" required>
-        <input type="submit" value="Add">
-    </form>
-
-    <!-- Keyword List -->
-    <h2>Keywords</h2>
-    <ul>
-        {% for kw in keywords %}
-            <li>
-                <span class="keyword">{{ kw.word }}</span>
-                <form action="{{ url_for('delete_keyword', id=kw.id) }}" method="POST" style="display:inline;">
-                    <input type="submit" value="Delete">
-                </form>
-            </li>
-        {% else %}
-            <li>No keywords added yet.</li>
-        {% endfor %}
-    </ul>
-
-    <!-- Search Results -->
-    <h2>Search Results</h2>
-    <ul>
-        {% for res in results %}
-            <li class="result">{{ res.keyword }}</li>
-        {% else %}
-            <li>No keywords found in uploaded PDF.</li>
-        {% endfor %}
-    </ul>
+    {% if extracted_text %}
+        <h3>Extracted Text:</h3>
+        <pre>{{ extracted_text }}</pre>
+    {% endif %}
 </body>
 </html>
