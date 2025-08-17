@@ -1,1 +1,3 @@
-apt.txt
+poppler-utils
+tesseract-ocr
+libtesseract-dev
