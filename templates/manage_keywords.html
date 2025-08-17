@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Keywords</title>
+</head>
+<body>
+    <h2>Keyword Management</h2>
+
+    <form method="POST" action="{{ url_for('add_keyword') }}">
+        <input type="text" name="word" placeholder="Enter keyword" required>
+        <select name="type">
+            <option value="positive">Positive</option>
+            <option value="negative">Negative</option>
+        </select>
+        <button type="submit">Add</button>
+    </form>
+
+    <h3>Saved Keywords:</h3>
+    <ul>
+        {% for kw in keywords %}
+            <li>
+                {{ kw.word }} ({{ kw.type }})
+                <a href="{{ url_for('delete_keyword', id=kw.id) }}">❌</a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <a href="{{ url_for('index') }}">Back</a>
+</body>
+</html>
