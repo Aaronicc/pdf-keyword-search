@@ -1,18 +1,20 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Image Reader</title>
+    <title>PDF & Image Reader with Keywords</title>
 </head>
 <body>
-    <h2>Upload an Image to Extract Text</h2>
+    <h2>Upload a PDF or Image to Extract Text</h2>
     <form method="POST" enctype="multipart/form-data">
-        <input type="file" name="file" accept="image/*" required>
+        <input type="file" name="file" accept=".pdf,image/*" required>
         <input type="submit" value="Upload">
     </form>
 
+    <a href="{{ url_for('manage_keywords') }}">Manage Keywords</a>
+
     {% if extracted_text %}
-        <h3>Extracted Text:</h3>
-        <pre>{{ extracted_text }}</pre>
+        <h3>Extracted Text with Highlights:</h3>
+        <pre>{{ extracted_text|safe }}</pre>
     {% endif %}
 </body>
 </html>
