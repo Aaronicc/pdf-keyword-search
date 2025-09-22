@@ -1,6 +1,0 @@
-flask
-flask_sqlalchemy
-pdfplumber
-pillow
-pytesseract
-markupsafe
