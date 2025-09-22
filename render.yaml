@@ -1,6 +1,0 @@
-services:
-  - type: web
-    name: pdf-keyword-search
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn main:app
