@@ -33,13 +33,20 @@ HTML_TEMPLATE = """
 </html>
 """
 
-def search_pdf(file_stream, keywords):
-    keywords = [kw.strip().lower() for kw in keywords.split(",")]
+def search_pdf(file_storage, keywords):
+    keywords = [kw.strip().lower() for kw in keywords.split(",") if kw.strip()]
     results = {kw: [] for kw in keywords}
 
-    reader = PyPDF2.PdfReader(file_stream)
+    # Reset file pointer (important for Flask uploads)
+    file_storage.stream.seek(0)
+
+    reader = PyPDF2.PdfReader(file_storage.stream)
+
     for page_num, page in enumerate(reader.pages, start=1):
-        text = page.extract_text()
+        try:
+            text = page.extract_text()
+        except Exception as e:
+            text = ""
         if text:
             lower_text = text.lower()
             for kw in keywords:
@@ -55,8 +62,10 @@ def index():
         pdf_file = request.files.get("pdf")
         keywords = request.form.get("keywords", "")
         if pdf_file and keywords:
-            results = search_pdf(pdf_file, keywords)
-
+            try:
+                results = search_pdf(pdf_file, keywords)
+            except Exception as e:
+                results = {"error": [f"Failed to process PDF: {e}"]}
     return render_template_string(HTML_TEMPLATE, results=results)
 
 if __name__ == "__main__":
