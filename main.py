@@ -1,34 +1,63 @@
+from flask import Flask, request, render_template_string
 import PyPDF2
 
-def search_pdf(pdf_path, keywords):
-    # Split keywords (strip spaces)
-    keywords = [kw.strip().lower() for kw in keywords.split(",")]
+app = Flask(__name__)
 
+HTML_TEMPLATE = """
+<!doctype html>
+<html>
+<head>
+  <title>PDF Keyword Search</title>
+</head>
+<body>
+  <h1>Upload PDF & Search Keywords</h1>
+  <form method="post" enctype="multipart/form-data">
+    <p><input type="file" name="pdf"></p>
+    <p><input type="text" name="keywords" placeholder="Enter keywords, comma-separated"></p>
+    <p><button type="submit">Search</button></p>
+  </form>
+
+  {% if results %}
+    <h2>Results</h2>
+    <ul>
+      {% for kw, pages in results.items() %}
+        <li><b>{{ kw }}</b>: 
+          {% if pages %} found on pages {{ pages }}
+          {% else %} not found
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</body>
+</html>
+"""
+
+def search_pdf(file_stream, keywords):
+    keywords = [kw.strip().lower() for kw in keywords.split(",")]
     results = {kw: [] for kw in keywords}
 
-    # Open PDF file
-    with open(pdf_path, "rb") as f:
-        reader = PyPDF2.PdfReader(f)
-
-        # Loop through pages
-        for page_num, page in enumerate(reader.pages, start=1):
-            text = page.extract_text()
-            if text:
-                lower_text = text.lower()
-                for kw in keywords:
-                    if kw in lower_text:
-                        results[kw].append(page_num)
+    reader = PyPDF2.PdfReader(file_stream)
+    for page_num, page in enumerate(reader.pages, start=1):
+        text = page.extract_text()
+        if text:
+            lower_text = text.lower()
+            for kw in keywords:
+                if kw in lower_text:
+                    results[kw].append(page_num)
 
     return results
 
+@app.route("/", methods=["GET", "POST"])
+def index():
+    results = None
+    if request.method == "POST":
+        pdf_file = request.files.get("pdf")
+        keywords = request.form.get("keywords", "")
+        if pdf_file and keywords:
+            results = search_pdf(pdf_file, keywords)
+
+    return render_template_string(HTML_TEMPLATE, results=results)
 
 if __name__ == "__main__":
-    pdf_file = "sample.pdf"  # <-- replace with your PDF path
-    keyword_input = input("Enter keywords (comma-separated): ")
-    matches = search_pdf(pdf_file, keyword_input)
-
-    for kw, pages in matches.items():
-        if pages:
-            print(f"Keyword '{kw}' found on pages: {pages}")
-        else:
-            print(f"Keyword '{kw}' not found.")
+    app.run(host="0.0.0.0", port=5000)
