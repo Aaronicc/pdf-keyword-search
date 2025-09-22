@@ -21,11 +21,7 @@ HTML_TEMPLATE = """
     <h2>Results</h2>
     <ul>
       {% for kw, pages in results.items() %}
-        <li><b>{{ kw }}</b>: 
-          {% if pages %} found on pages {{ pages }}
-          {% else %} not found
-          {% endif %}
-        </li>
+        <li><b>{{ kw }}</b>: found on pages {{ pages }}</li>
       {% endfor %}
     </ul>
   {% endif %}
@@ -35,23 +31,22 @@ HTML_TEMPLATE = """
 
 def search_pdf(file_storage, keywords):
     keywords = [kw.strip().lower() for kw in keywords.split(",") if kw.strip()]
-    results = {kw: [] for kw in keywords}
+    results = {}
 
-    # Reset file pointer (important for Flask uploads)
+    # Reset file pointer for Flask uploads
     file_storage.stream.seek(0)
-
     reader = PyPDF2.PdfReader(file_storage.stream)
 
     for page_num, page in enumerate(reader.pages, start=1):
         try:
             text = page.extract_text()
-        except Exception as e:
+        except Exception:
             text = ""
         if text:
             lower_text = text.lower()
             for kw in keywords:
                 if kw in lower_text:
-                    results[kw].append(page_num)
+                    results.setdefault(kw, []).append(page_num)
 
     return results
 
